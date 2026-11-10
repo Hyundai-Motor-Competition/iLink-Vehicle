@@ -76,9 +76,3 @@ scripts/pleos-flow-capture.sh
 
 - [docs/design.md](docs/design.md) 구조와 흐름
 - [docs/api-gap.md](docs/api-gap.md) 기획서와 서버 API 차이
-
-## Contributors
-
-| | 이름 | 역할 |
-|---|---|---|
-| <img src="https://github.com/highstar11.png" width="60"> | [highstar11](https://github.com/highstar11) | 차량 앱 개발 |
