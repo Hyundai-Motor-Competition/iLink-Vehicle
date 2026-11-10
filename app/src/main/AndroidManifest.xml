@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
+    <!-- Android 14+: 위치 포그라운드 서비스(텔레메트리 SIG-01)는 위치 권한이 있어야 시작된다 -->
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!-- Pleos Vehicle SDK: 탑승 인식(도어 개폐) · 정차 판단(기어) · 속도 -->
+    <uses-permission android:name="pleos.car.permission.CAR_DOORS" />
+    <uses-permission android:name="pleos.car.permission.CAR_POWERTRAIN" />
+    <uses-permission android:name="pleos.car.permission.CAR_SPEED" />
+    <uses-permission android:name="pleos.car.permission.CAR_DRIVE" />
+    <!-- 주행 규제 상태 (CarUxRestrictionsManager) -->
+    <uses-permission android:name="android.car.permission.CAR_DRIVING_STATE" />
+
+    <application
+        android:name=".ILinkApplication"
+        android:allowBackup="false"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.ILink">
+
+        <!-- screenOrientation 미지정: Pleos 기본(Portrait 1창), Landscape 2창 모두 대응 -->
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize"
+            android:resizeableActivity="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <!-- 주행 중 사용 화면(V01~V04, V06)을 위한 DO 선언. 선언 방식은 Pleos 심사 기준 확인 필요 -->
+            <meta-data
+                android:name="distractionOptimized"
+                android:value="true" />
+        </activity>
+
+        <service
+            android:name=".service.PickupSessionService"
+            android:exported="false"
+            android:foregroundServiceType="location" />
+    </application>
+</manifest>

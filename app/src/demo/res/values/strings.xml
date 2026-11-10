@@ -1,0 +1,4 @@
+<resources>
+    <!-- demo 빌드는 실제 앱과 같이 설치되도록 이름과 ID(.demo)를 나눈다 -->
+    <string name="app_name">iLink 데모</string>
+</resources>

@@ -1,0 +1,24 @@
+# Android / Gradle
+*.iml
+.gradle/
+.kotlin/
+/local.properties
+/.idea/
+/build/
+/app/build/
+/captures/
+.externalNativeBuild/
+.cxx/
+*.keystore
+!debug.keystore
+*.apk
+*.aab
+
+# macOS
+.DS_Store
+
+# 디자인 시안 스크린샷 (공유 안 함)
+/assets/
+
+# 캡처 스크립트 결과물 (README용 이미지는 docs/images에 따로 둠)
+/screenshots/
