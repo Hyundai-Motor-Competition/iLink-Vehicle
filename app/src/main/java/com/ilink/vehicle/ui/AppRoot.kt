@@ -1,5 +1,7 @@
 package com.ilink.vehicle.ui
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
@@ -28,13 +30,31 @@ fun AppRoot(vm: MainViewModel) {
                 VehicleScreen.V01 -> V01Today(s, onStart = { vm.startPickup(it) }, onSettings = { vm.openSettings() })
                 VehicleScreen.V02 -> V02Recommend(s, onRoute = vm::routeTo)
                 VehicleScreen.V03 -> V03Progress(s, onHold = { vm.holdCall() }, onRelease = { vm.releaseCallHold() })
-                VehicleScreen.V04 -> V04Call(s, onHold = { vm.holdCall() }, onRelease = { vm.releaseCallHold() })
-                VehicleScreen.V05 -> V05Complete(s, onReject = { vm.rejectBoarding(it) }, onManual = { vm.completeManually() }, onDone = vm::finish)
-                VehicleScreen.V06 -> V06Exception(s, onCancel = { vm.cancelPickup() })
+                VehicleScreen.V04 -> V04Call(
+                    s, onHold = { vm.holdCall() }, onRelease = { vm.releaseCallHold() },
+                    onManual = { vm.completeManually() }, onContact = { vm.openContacts() },
+                )
+                VehicleScreen.V05 -> V05Complete(s, onReject = { vm.rejectBoarding(it) }, onComplete = { vm.completeManually() }, onDone = vm::finish)
+                VehicleScreen.V06 -> V06Exception(
+                    s, onAlternative = { vm.useAlternative(it) }, onContact = { vm.openContacts() },
+                    onCancel = { vm.cancelPickup() }, onResume = { vm.resume() },
+                )
                 VehicleScreen.V07 -> V07Settings(s, onBack = { vm.go(VehicleScreen.V01) }, onLogout = { vm.logout() })
             }
+            // V04·V06 직접 연락
+            s.contacts?.let { list ->
+                ContactSheet(
+                    list, s.driving,
+                    onCall = { phone ->
+                        runCatching { context.startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:$phone")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
+                    },
+                    onClose = vm::closeContacts,
+                )
+            }
+            // U01~U08 음성 안내: 말하는 동안 창 위에
+            s.banner?.let { VoiceOverlay(it, onDismiss = vm::clearBanner) }
             demo?.let {
-                DemoPanel(it, onReset = { it.reset(); vm.logout() }, modifier = Modifier.align(Alignment.TopEnd))
+                DemoPanel(it, onReset = { it.reset(); vm.logout() }, onVoice = vm::voiceCommand, modifier = Modifier.align(Alignment.BottomEnd))
             }
         }
     }

@@ -13,7 +13,6 @@ import com.ilink.vehicle.platform.vehicle.DoorSignal
 import com.ilink.vehicle.platform.vehicle.VehicleSignalSource
 import com.ilink.vehicle.platform.voice.Announcer
 import com.ilink.vehicle.platform.voice.Banner
-import com.ilink.vehicle.platform.voice.VoiceCue
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -21,15 +20,19 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 /**
  * 데모 빌드의 가짜 차량 세계. Pleos SDK 대신 이 객체들이 내비·기어·도어·위치 신호를 낸다.
  *
- * 길안내를 시작하면(이 장소로 길안내) 약 30초 동안 차가 다가오고(ETA 300초 → 0초, 실제보다 10배 빠름),
+ * 길안내를 시작하면(이 장소로 길안내) 약 1분 동안 차가 다가오고(ETA 300초 → 0초, 실제보다 5배 빠름),
+ * 그동안 기어가 D라 화면이 주행용으로 바뀐다.
  * 도착하면 기어 P → 3초 뒤 뒷좌석 오른쪽 문 열림 → 2초 뒤 닫힘을 낸다.
  * 앱의 서비스·도어 판정·서버 동기화 로직은 실제와 똑같이 이 신호를 처리한다.
  */
@@ -48,10 +51,26 @@ class DemoWorld(private val scope: CoroutineScope, approveAfterPolls: Int = 6) {
 
     // ── 데모 조작 패널에서 바꾸는 값 ──
 
-    /** 주행 규제(주행 중) 켜기/끄기 */
+    /** 주행 규제 강제로 켜기 (정차 중에도 주행 화면 보기). 기어가 D면 이 값과 상관없이 주행 중 */
     val restrictedControl: StateFlow<Boolean> = _restricted
     fun setRestricted(on: Boolean) {
         _restricted.value = on
+    }
+
+    /** 실제 차처럼 기어가 P가 아니면 주행 규제. 데모 패널 스위치로 강제로 켤 수도 있다 */
+    private val drivingNow: StateFlow<Boolean> = combine(_restricted, _gear) { forced, gear -> forced || (gear != null && gear != "P") }
+        .stateIn(scope, SharingStarted.Eagerly, false)
+
+    /** 정차 실패(STOP_FAILED) 흉내 → V06 '안전하게 정차할 수 없어요' */
+    fun stopFailed() {
+        drive?.cancel() // 정차 지점에 서지 못하고 지나감: 주행은 계속(D)
+        server.injectStopFailed()
+    }
+
+    /** 지금 자리에서 정차 (기어 P) */
+    fun park() {
+        drive?.cancel()
+        _gear.value = "P"
     }
 
     /** 도어 신호 끊김 흉내 → V05 수동 완료 폴백 */
@@ -98,7 +117,7 @@ class DemoWorld(private val scope: CoroutineScope, approveAfterPolls: Int = 6) {
             _eta.value = NaviEta(seconds, seconds * 8, System.currentTimeMillis())
             if (seconds <= 0) break
             delay(1_000)
-            seconds = (seconds - 10).coerceAtLeast(0)
+            seconds = (seconds - 5).coerceAtLeast(0)
         }
         // 도착 → 정차(P) → 아이가 뒷문으로 탑승
         delay(1_500)
@@ -124,7 +143,7 @@ class DemoWorld(private val scope: CoroutineScope, approveAfterPolls: Int = 6) {
     }
 
     val restriction = object : RestrictionSource {
-        override val restricted: StateFlow<Boolean> = _restricted
+        override val restricted: StateFlow<Boolean> = drivingNow
         override fun start() = Unit
         override fun stop() = Unit
     }
@@ -135,8 +154,8 @@ class DemoWorld(private val scope: CoroutineScope, approveAfterPolls: Int = 6) {
         override val banner: StateFlow<Banner?> = _banner
         override fun start() = Unit
         override fun stop() = Unit
-        override fun announce(cue: VoiceCue, text: String, eventKey: String) {
-            if (spoken.add(eventKey)) _banner.value = Banner(cue, text)
+        override fun announce(banner: Banner, eventKey: String?) {
+            if (eventKey == null || spoken.add(eventKey)) _banner.value = banner
         }
         override fun clearBanner() {
             _banner.value = null

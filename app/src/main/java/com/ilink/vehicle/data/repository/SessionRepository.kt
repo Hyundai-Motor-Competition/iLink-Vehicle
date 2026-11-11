@@ -58,6 +58,8 @@ class SessionRepository(
 
     suspend fun holdCall() = apply(api.holdCall(requireId(), version(), newIdempotencyKey()))
     suspend fun releaseCallHold() = apply(api.releaseCallHold(requireId(), version(), newIdempotencyKey()))
+    /** 예외(ON_HOLD)에서 다시 진행 */
+    suspend fun resume() = apply(api.releaseSessionHold(requireId(), version(), newIdempotencyKey()))
     suspend fun cancel(reason: String?) = apply(api.cancel(requireId(), version(), reason, newIdempotencyKey()))
     suspend fun rejectBoarding(childUserId: Long?) =
         apply(api.rejectBoarding(requireId(), RejectBoardingRequest(version(), childUserId), newIdempotencyKey()))

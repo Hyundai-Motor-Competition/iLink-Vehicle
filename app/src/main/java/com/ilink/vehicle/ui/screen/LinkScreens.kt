@@ -35,6 +35,8 @@ import com.ilink.vehicle.ui.component.PrimaryAction
 import com.ilink.vehicle.ui.component.ButtonTone
 import com.ilink.vehicle.ui.component.Pill
 import com.ilink.vehicle.ui.component.PleosButton
+import com.ilink.vehicle.ui.component.IconCircle
+import com.ilink.vehicle.ui.component.CarIcon
 import com.ilink.vehicle.ui.component.PleosWindow
 import com.ilink.vehicle.ui.component.QrCode
 import com.ilink.vehicle.ui.component.u
@@ -48,6 +50,10 @@ import com.ilink.vehicle.ui.component.SecondaryAction
 @Composable
 fun V00Connect(s: UiState, onReissue: () -> Unit, onLater: () -> Unit = {}) {
     val c = Pleos.colors
+    if (s.driving) {
+        V00Driving()
+        return
+    }
     PleosWindow(stringResource(R.string.app_name), titleBold = false) {
         Column(Modifier.weight(1f).padding(horizontal = u(24))) {
             Text(
@@ -62,7 +68,6 @@ fun V00Connect(s: UiState, onReissue: () -> Unit, onLater: () -> Unit = {}) {
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     when {
-                        s.drivingRestricted -> PanelMessage("정차 후 연결할 수 있어요", "주행 중에는 QR 코드를 보여 주지 않아요")
                         s.error != null && s.link !is LinkState.Waiting -> PanelMessage(s.error, "새 QR 코드를 받아 다시 시도해 주세요")
                         s.link is LinkState.Waiting -> {
                             // 여백 1칸 포함 283 → 보이는 QR이 디자인의 262와 같다
@@ -86,10 +91,27 @@ fun V00Connect(s: UiState, onReissue: () -> Unit, onLater: () -> Unit = {}) {
                 }
             }
             Spacer(Modifier.height(u(18)))
-            PleosButton("새 QR 코드 받기", enabled = !s.drivingRestricted && !s.busy, onClick = onReissue)
+            PleosButton("새 QR 코드 받기", enabled = !s.busy, onClick = onReissue)
             Spacer(Modifier.height(u(20)))
             PleosButton("나중에 하기", ButtonTone.Secondary, onClick = onLater)
             Spacer(Modifier.height(u(24)))
+        }
+    }
+}
+
+/** V00 주행 중 (assets/V00 Driving): QR과 버튼을 모두 숨기고, 정차하면 저절로 QR 화면으로 돌아간다 */
+@Composable
+private fun V00Driving() {
+    val c = Pleos.colors
+    PleosWindow(stringResource(R.string.app_name), titleBold = false) {
+        Box(Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(bottom = u(40))) {
+                IconCircle(c.iconCircle, 90) { CarIcon(it, c.text) }
+                Spacer(Modifier.height(u(34)))
+                Text("안전을 위해 주행 중에는 로그인을 할 수 없어요", color = c.text, fontSize = us(32), fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center)
+                Spacer(Modifier.height(u(20)))
+                Text("차량을 안전한 곳에 정차하면 화면이 자동으로 다시 나타나요.", color = c.subText, fontSize = us(20), textAlign = TextAlign.Center)
+            }
         }
     }
 }

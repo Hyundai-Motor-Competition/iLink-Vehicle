@@ -1,6 +1,7 @@
 package com.ilink.vehicle.demo
 
 import com.ilink.vehicle.data.model.ActiveSession
+import com.ilink.vehicle.data.model.ChangeSpotRequest
 import com.ilink.vehicle.data.model.CallGuard
 import com.ilink.vehicle.data.model.CallProgress
 import com.ilink.vehicle.data.model.ConfirmRouteRequest
@@ -49,6 +50,7 @@ class DemoServer(private val scope: CoroutineScope, private val approveAfterPoll
     private val lock = Any()
 
     private var linkPolls = 0
+    private var weekStartQuery: String? = null
     private var session: SessionView? = null
     private var nextSessionId = 7001L
     private var completeJob: kotlinx.coroutines.Job? = null
@@ -64,12 +66,30 @@ class DemoServer(private val scope: CoroutineScope, private val approveAfterPoll
         bump()
     }
 
+    /** 서버가 정차 실패를 판정한 것처럼: 세션 보류, 아이는 실내 대기 */
+    fun injectStopFailed() = synchronized(lock) {
+        if (session?.isTerminal == false) {
+            update {
+                it.copy(
+                    status = it.status?.copy(session = "ON_HOLD"),
+                    incident = SessionIncident("STOP_FAILED", it.children.firstOrNull()?.childUserId, now()),
+                    children = it.children.map { c -> c.copy(phase = "WAITING") },
+                )
+            }
+        }
+    }
+
     override fun intercept(chain: Interceptor.Chain): Response {
         val req = chain.request()
         val path = req.url.encodedPath
         val body = req.body?.let { Buffer().also(it::writeTo).readUtf8() }.orEmpty()
         Thread.sleep(120) // 네트워크처럼 약간 늦게
-        val (code, text) = runCatching { route(req.method, path, body) }
+        val (code, text) = runCatching {
+            synchronized(lock) {
+                weekStartQuery = req.url.queryParameter("weekStart")
+                route(req.method, path, body)
+            }
+        }
             .getOrElse { 500 to error("DEMO_ERROR", it.message ?: "demo error") }
         return Response.Builder()
             .request(req)
@@ -103,7 +123,7 @@ class DemoServer(private val scope: CoroutineScope, private val approveAfterPoll
             path == "/v1/devices/me/push-token" -> 204 to ""
 
             // 일정 · 설정
-            path == "/v1/vehicles/me/weekly-pickups" -> ok(DemoData.weekly())
+            path == "/v1/vehicles/me/weekly-pickups" -> ok(DemoData.weekly(weekStart = weekStartQuery?.let { runCatching { java.time.LocalDate.parse(it) }.getOrNull() }))
             path == "/v1/vehicles/me/settings-summary" -> ok(DemoData.settings)
             path == "/v1/families/me/pickup-spots" -> ok(DemoData.spots)
 
@@ -134,6 +154,20 @@ class DemoServer(private val scope: CoroutineScope, private val approveAfterPoll
                         spot = SessionSpot(r.spotId, spot?.name, spotVersion = 1, locked = true),
                         status = it.status?.copy(spot = "CONFIRMED", vehicle = "ROUTING"),
                         route = SessionRoute(1, null),
+                    )
+                }
+            }
+            "POST" to "spot-changes" -> {
+                val r = decode<ChangeSpotRequest>(body)
+                val spot = DemoData.spots.academies.flatMap { it.spots }.firstOrNull { it.spotId == r.spotId }
+                update {
+                    it.copy(
+                        spot = SessionSpot(r.spotId, spot?.name, spotVersion = r.spotVersion + 1, locked = false),
+                        status = it.status?.copy(session = "ACTIVE", spot = "SELECTED", call = "NONE"),
+                        incident = null,
+                        eta = null,
+                        call = SessionCall(mode = "AUTO", guard = CallGuard(met = false, unmet = listOf("ETA"))),
+                        children = it.children.map { c -> c.copy(phase = "WAITING") },
                     )
                 }
             }
@@ -197,6 +231,15 @@ class DemoServer(private val scope: CoroutineScope, private val approveAfterPoll
                 status = s.status?.copy(vehicle = if (s.status.vehicle == "STOPPED") "STOPPED" else "APPROACHING"),
             )
             val call = next.call
+            // 합류 안내를 보낸 지 4초가 지나면 자녀가 열람한 것으로 본다
+            val sent = call?.progress?.sentAt?.let { Instant.parse(it) }
+            if (call?.callId != null && call.progress?.acknowledgedAt == null && sent != null && sent.plusSeconds(4) <= now) {
+                next = next.copy(
+                    call = call.copy(progress = call.progress.copy(acknowledgedAt = now.toString())),
+                    status = next.status?.copy(call = "ACKNOWLEDGED"),
+                    children = next.children.map { c -> c.copy(acknowledgedAt = now.toString()) },
+                )
+            }
             if (call != null && call.callId == null && !call.held) {
                 next = if (t.navEtaSeconds <= 180) {
                     next.copy(
@@ -225,8 +268,8 @@ class DemoServer(private val scope: CoroutineScope, private val approveAfterPoll
                 it.copy(
                     status = it.status?.copy(vehicle = "STOPPED"),
                     eta = it.eta?.copy(remainingSeconds = 0, stopEtaAt = now.toString()),
-                    children = it.children.map { c -> if (c.phase == "CALLED") c.copy(phase = "MEETING", acknowledgedAt = now.toString()) else c },
-                    call = it.call?.copy(progress = it.call.progress?.copy(acknowledgedAt = now.toString())),
+                    children = it.children.map { c -> if (c.phase == "CALLED") c.copy(phase = "MEETING", acknowledgedAt = c.acknowledgedAt ?: now.toString()) else c },
+                    call = it.call?.copy(progress = it.call.progress?.let { p -> p.copy(acknowledgedAt = p.acknowledgedAt ?: now.toString()) }),
                 )
             }
             "DEPARTED" -> update { it.copy(status = it.status?.copy(vehicle = "DEPARTED")) }

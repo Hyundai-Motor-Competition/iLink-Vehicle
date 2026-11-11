@@ -15,12 +15,20 @@ import kotlinx.coroutines.flow.StateFlow
 /** VUI 안내 ID (기획서 ID Rule U01~U09) */
 enum class VoiceCue { U01, U02, U03, U04, U05, U06, U07, U08, U09 }
 
-data class Banner(val cue: VoiceCue, val text: String)
+/**
+ * 발화와 함께 앱 창에 띄우는 안내 (assets/U01~U08).
+ * @param query U08 음성 명령: 운전자가 한 말. 있으면 카드 위에 따로 보여 준다
+ */
+data class Banner(val cue: VoiceCue, val title: String, val sub: String? = null, val query: String? = null) {
+    /** TTS로 읽을 문장 */
+    val speech: String get() = listOfNotNull(title, sub).joinToString(". ")
+}
 
 interface Announcer {
     val banner: StateFlow<Banner?>
     fun start()
-    fun announce(cue: VoiceCue, text: String, eventKey: String)
+    /** 같은 사건(eventKey)은 한 번만. eventKey가 null이면 매번 (음성 명령 응답) */
+    fun announce(banner: Banner, eventKey: String?)
     fun clearBanner()
     fun stop()
 }
@@ -65,11 +73,13 @@ class VoiceAnnouncer(context: Context) : Announcer {
         })
     }
 
-    override fun announce(cue: VoiceCue, text: String, eventKey: String) {
-        if (!spoken.add(eventKey)) return
-        if (spoken.size > 200) spoken.remove(spoken.first())
-        _banner.value = Banner(cue, text)
-        if (ready && requestFocus()) tts.speak(text, false)
+    override fun announce(banner: Banner, eventKey: String?) {
+        if (eventKey != null) {
+            if (!spoken.add(eventKey)) return
+            if (spoken.size > 200) spoken.remove(spoken.first())
+        }
+        _banner.value = banner
+        if (ready && requestFocus()) tts.speak(banner.speech, false)
     }
 
     override fun clearBanner() {

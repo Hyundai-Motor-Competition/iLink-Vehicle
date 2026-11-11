@@ -1,6 +1,6 @@
 <resources>
-    <!-- 시스템 라이트/다크를 따른다. 창 바탕은 Compose 테마(PleosColors.window)와 같게 -->
-    <style name="Theme.ILink" parent="android:Theme.Material.Light.NoActionBar">
+    <!-- 차량 앱은 다크 컨셉 하나만 쓴다. 창 바탕은 Compose 테마(PleosColors.window)와 같게 -->
+    <style name="Theme.ILink" parent="android:Theme.Material.NoActionBar">
         <item name="android:windowBackground">@color/window_bg</item>
     </style>
 </resources>

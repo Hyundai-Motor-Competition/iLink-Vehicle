@@ -39,8 +39,8 @@ object DemoData {
     )
 
     /** 이번 주 월~일. 오늘은 김현지 18:10, 김현우 18:30 */
-    fun weekly(today: LocalDate = LocalDate.now(SEOUL)): WeeklyPickups {
-        val monday = today.minusDays((today.dayOfWeek.value - 1).toLong())
+    fun weekly(today: LocalDate = LocalDate.now(SEOUL), weekStart: LocalDate? = null): WeeklyPickups {
+        val monday = weekStart ?: today.minusDays((today.dayOfWeek.value - 1).toLong())
         val days = (0L until 7L).map { n ->
             val date = monday.plusDays(n)
             val dow = date.dayOfWeek.value // 1=월
@@ -54,7 +54,7 @@ object DemoData {
     }
 
     val settings = VehicleSettingsSummary(
-        guardianNameMasked = "김*대",
+        guardianNameMasked = "김현대",
         children = listOf(VehicleSettingsSummary.Child(2, "김현지"), VehicleSettingsSummary.Child(1, "김현우")),
         joinCallMode = "AUTO",
     )

@@ -1,6 +1,5 @@
 package com.ilink.vehicle.ui.theme
 
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
@@ -11,12 +10,17 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.material3.LocalTextStyle
+import androidx.compose.ui.text.font.Font
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import com.ilink.vehicle.R
 import androidx.compose.ui.unit.sp
 
 /**
  * Pleos Connect 앱 창 색 (assets/V00 … Light · Dark 디자인에서 뽑은 값).
- * 시스템 라이트/다크 설정을 그대로 따른다.
+ * 차량 앱은 디자이너 결정에 따라 다크 컨셉 하나만 쓴다 (시스템 라이트/다크와 상관없이).
+ * Pleos 가이드는 라이트/다크 둘 다를 요구하지 않고 대비 4.5:1 이상만 요구한다. LightPleos는 미리보기 비교용으로 남겨 둔다.
  */
 @Immutable
 data class PleosColors(
@@ -56,6 +60,12 @@ data class PleosColors(
     val route: Color,
     val meet: Color,
     val iconCircle: Color,
+    /**
+     * V01 개선안의 강조색. 다크는 디자인의 노랑, 라이트는 흰 바탕에서 노랑 글자·버튼이
+     * 대비 기준(글자 4.5:1, 버튼 경계 3:1)을 못 넘어서 파랑으로 바꾼다.
+     */
+    val highlight: Color,
+    val onHighlight: Color,
 )
 
 val LightPleos = PleosColors(
@@ -86,6 +96,8 @@ val LightPleos = PleosColors(
     route = Color(0xFF0064FF),
     meet = Color(0xFF02C265),
     iconCircle = Color(0xFFEDEEF2),
+    highlight = Color(0xFF0064FF),
+    onHighlight = Color(0xFFFFFFFF),
 )
 
 val DarkPleos = PleosColors(
@@ -116,6 +128,8 @@ val DarkPleos = PleosColors(
     route = Color(0xFF0082FF),
     meet = Color(0xFF00C46A),
     iconCircle = Color(0xFF44464E),
+    highlight = Color(0xFFF6FF43),
+    onHighlight = Color(0xFF131417),
 )
 
 val LocalPleosColors = staticCompositionLocalOf { LightPleos }
@@ -138,20 +152,37 @@ private val LightScheme = lightColorScheme(
     error = LightPleos.danger,
 )
 
+/**
+ * 현대 전용 글꼴 NeoHyundai (L 300 · R 400 · B 700 · EB 800 · EBK 900).
+ * 500(Medium)은 R, 600(SemiBold)은 B로 그려진다 (가까운 굵기).
+ */
+val NeoHyundai = FontFamily(
+    Font(R.font.neohyundai_l, FontWeight.Light),
+    Font(R.font.neohyundai_r, FontWeight.Normal),
+    Font(R.font.neohyundai_r, FontWeight.Medium),
+    Font(R.font.neohyundai_b, FontWeight.SemiBold),
+    Font(R.font.neohyundai_b, FontWeight.Bold),
+    Font(R.font.neohyundai_eb, FontWeight.ExtraBold),
+    Font(R.font.neohyundai_ebk, FontWeight.Black),
+)
+
 // Pleos 가이드: 대비 4.5:1 이상, 최소 12sp, 화면당 핵심 수치 1개를 Headline으로.
 private val Type = Typography(
-    displayMedium = TextStyle(fontSize = 44.sp, fontWeight = FontWeight.Bold),
-    headlineSmall = TextStyle(fontSize = 26.sp, fontWeight = FontWeight.SemiBold),
-    titleMedium = TextStyle(fontSize = 20.sp, fontWeight = FontWeight.SemiBold),
-    bodyLarge = TextStyle(fontSize = 18.sp),
-    bodyMedium = TextStyle(fontSize = 16.sp),
-    labelLarge = TextStyle(fontSize = 18.sp, fontWeight = FontWeight.SemiBold),
+    displayMedium = TextStyle(fontFamily = NeoHyundai, fontSize = 44.sp, fontWeight = FontWeight.Bold),
+    headlineSmall = TextStyle(fontFamily = NeoHyundai, fontSize = 26.sp, fontWeight = FontWeight.SemiBold),
+    titleMedium = TextStyle(fontFamily = NeoHyundai, fontSize = 20.sp, fontWeight = FontWeight.SemiBold),
+    bodyLarge = TextStyle(fontFamily = NeoHyundai, fontSize = 18.sp),
+    bodyMedium = TextStyle(fontFamily = NeoHyundai, fontSize = 16.sp),
+    labelLarge = TextStyle(fontFamily = NeoHyundai, fontSize = 18.sp, fontWeight = FontWeight.SemiBold),
 )
 
 @Composable
-fun ILinkTheme(darkTheme: Boolean = isSystemInDarkTheme(), content: @Composable () -> Unit) {
+fun ILinkTheme(darkTheme: Boolean = true, content: @Composable () -> Unit) {
     CompositionLocalProvider(LocalPleosColors provides if (darkTheme) DarkPleos else LightPleos) {
-        MaterialTheme(colorScheme = if (darkTheme) DarkScheme else LightScheme, typography = Type, content = content)
+        MaterialTheme(colorScheme = if (darkTheme) DarkScheme else LightScheme, typography = Type) {
+            // 모든 Text가 NeoHyundai를 쓰도록 기본 글자 스타일에 넣는다
+            CompositionLocalProvider(LocalTextStyle provides LocalTextStyle.current.copy(fontFamily = NeoHyundai), content = content)
+        }
     }
 }
 
