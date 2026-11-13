@@ -49,10 +49,10 @@ import kotlin.math.cos
 import kotlin.math.sqrt
 
 /** 개선안의 '여기로 출발하기' 자동 출발까지 남은 초 */
-private const val AUTO_START_S = 8
+internal const val AUTO_START_S = 8
 
 /** 장소 1곳의 표시 값: 운전 시간(초) · 걷는 시간(분) */
-private data class SpotTime(val driveSeconds: Int?, val walkMinutes: Int?)
+internal data class SpotTime(val driveSeconds: Int?, val walkMinutes: Int?)
 
 /**
  * V02 정차 중 — assets/V02 픽업 장소 선택 (개선안) 좌표 그대로.
@@ -141,7 +141,7 @@ private fun ErrorLineAt(text: String) {
 
 /** 장소 카드 698 x 127: [분] [기본 배지 · 이름 / 설명] [도착 시각] */
 @Composable
-private fun SpotCard(spot: PickupSpots.Spot, t: SpotTime?, selected: Boolean, modifier: Modifier, onClick: () -> Unit) {
+internal fun SpotCard(spot: PickupSpots.Spot, t: SpotTime?, selected: Boolean, modifier: Modifier, onClick: () -> Unit) {
     val shape = RoundedCornerShape(u(44))
     Row(
         modifier.size(u(698), u(127)).clip(shape)
@@ -182,7 +182,7 @@ private fun SpotCard(spot: PickupSpots.Spot, t: SpotTime?, selected: Boolean, mo
 
 /** 698 x 73 노란 버튼 + 자동 출발까지 남은 초를 보여 주는 고리 */
 @Composable
-private fun StartButton(left: Int, enabled: Boolean, modifier: Modifier, onClick: () -> Unit) {
+internal fun StartButton(left: Int, enabled: Boolean, modifier: Modifier, onClick: () -> Unit) {
     Row(
         modifier.size(u(698), u(73)).clip(RoundedCornerShape(u(18)))
             .background(if (enabled) V01.yellow else V01.yellow.copy(alpha = 0.5f))
@@ -209,7 +209,7 @@ private fun StartButton(left: Int, enabled: Boolean, modifier: Modifier, onClick
 }
 
 @Composable
-private fun MenuIcon(size: Dp, color: Color) {
+internal fun MenuIcon(size: Dp, color: Color) {
     Canvas(Modifier.size(size)) {
         val w = this.size.width
         val st = w * 0.09f
@@ -218,7 +218,7 @@ private fun MenuIcon(size: Dp, color: Color) {
 }
 
 /** 등록 장소에 맞는 추천 후보(50m 안)가 있으면 그 운전 · 걷는 시간, 없으면 장소 목록 값 */
-private fun timeOf(spot: PickupSpots.Spot, rec: SpotRecommendations?): SpotTime {
+internal fun timeOf(spot: PickupSpots.Spot, rec: SpotRecommendations?): SpotTime {
     val p = spot.stopPoint
     val match = if (p == null) null else rec?.items?.filter { it.location != null }?.minByOrNull { meters(p.lat, p.lng, it.location!!.lat, it.location.lng) }
         ?.takeIf { meters(p.lat, p.lng, it.location!!.lat, it.location.lng) <= 50 }

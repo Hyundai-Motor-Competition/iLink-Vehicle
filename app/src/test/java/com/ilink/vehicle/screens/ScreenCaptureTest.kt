@@ -35,7 +35,7 @@ private fun entries(only: Regex? = null): List<Array<Any>> {
 }
 
 /** assets에 디자인이 있는 화면 */
-private val DESIGNED = Regex("^V0[0-3]_")
+private val DESIGNED = Regex("^V0[0-6]_")
 
 /** 상태 하나를 그려서 저장. 파라미터 테스트 클래스들이 공유한다 */
 abstract class CaptureBase(private val e: ScreenCatalog.Entry, private val folder: String) {

@@ -8,6 +8,7 @@ import com.ilink.vehicle.data.model.ConfirmRouteRequest
 import com.ilink.vehicle.data.model.Contacts
 import com.ilink.vehicle.data.model.LinkStatusResponse
 import com.ilink.vehicle.data.model.RejectBoardingRequest
+import com.ilink.vehicle.data.model.SendCallResponse
 import com.ilink.vehicle.data.model.SessionBoarding
 import com.ilink.vehicle.data.model.SessionCall
 import com.ilink.vehicle.data.model.SessionEta
@@ -172,6 +173,21 @@ class DemoServer(private val scope: CoroutineScope, private val approveAfterPoll
                         children = it.children.map { c -> c.copy(phase = "WAITING") },
                     )
                 }
+            }
+            // 보호자가 차에서 '여기로 부르기': 지금 차 위치로 합류 안내를 바로 다시 보낸다
+            "POST" to "calls" -> {
+                val now = Instant.now()
+                update {
+                    it.copy(
+                        call = it.call?.copy(
+                            callId = (it.call.callId ?: 9000) + 1, held = false, scheduledAt = null,
+                            progress = CallProgress(now.toString(), now.toString(), now.plusSeconds(1).toString()),
+                        ),
+                        status = it.status?.copy(call = "DELIVERED"),
+                        children = it.children.map { c -> c.copy(phase = "CALLED", callNotBefore = now.toString()) },
+                    )
+                }
+                ok(SendCallResponse(session?.call?.callId, "DELIVERED"))
             }
             "PUT" to "call-hold" -> update { it.copy(call = it.call?.copy(held = true)) }
             // 보류를 풀 때 이미 정차해 있으면 바로 보낸다

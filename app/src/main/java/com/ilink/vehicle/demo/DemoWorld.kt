@@ -107,6 +107,8 @@ class DemoWorld(private val scope: CoroutineScope, approveAfterPolls: Int = 6) {
     }
 
     private suspend fun simulateDrive() {
+        // 다른 장소로 다시 출발하면 처음부터 달린다 ('바로 도착'의 0초가 남지 않게)
+        _eta.value = null
         delay(800)
         _routeResults.emit(RouteResult.Started)
         _gear.value = "D"
@@ -117,13 +119,14 @@ class DemoWorld(private val scope: CoroutineScope, approveAfterPolls: Int = 6) {
             _eta.value = NaviEta(seconds, seconds * 8, System.currentTimeMillis())
             if (seconds <= 0) break
             delay(1_000)
-            seconds = (seconds - 5).coerceAtLeast(0)
+            // 5분 길을 약 100초에: 출발 1분 뒤 단계 전환(V03 → 목적지로 가는 중)이 보이게
+            seconds = (seconds - 3).coerceAtLeast(0)
         }
         // 도착 → 정차(P) → 아이가 뒷문으로 탑승
         delay(1_500)
         _gear.value = "P"
-        // 정차 → 합류 안내 발송 → 자녀가 걸어오는 시간
-        delay(9_000)
+        // 정차 → 합류 안내 발송 → 자녀가 걸어오는 시간 ('여기로 부르기' · '다른장소로 가기'를 눌러 볼 수 있게 40초)
+        delay(40_000)
         _doors.emit(DoorSignal(Door.REAR_RIGHT, open = true, at = System.currentTimeMillis()))
         delay(2_000)
         _doors.emit(DoorSignal(Door.REAR_RIGHT, open = false, at = System.currentTimeMillis()))

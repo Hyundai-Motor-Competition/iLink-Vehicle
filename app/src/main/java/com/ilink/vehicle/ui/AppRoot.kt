@@ -29,11 +29,26 @@ fun AppRoot(vm: MainViewModel) {
                 VehicleScreen.V00 -> V00Connect(s, onReissue = vm::startLink, onLater = { activity?.moveTaskToBack(true) })
                 VehicleScreen.V01 -> V01Today(s, onStart = { vm.startPickup(it) }, onSettings = { vm.openSettings() })
                 VehicleScreen.V02 -> V02Recommend(s, onRoute = vm::routeTo, onMenu = { vm.openSettings() })
-                VehicleScreen.V03 -> V03Progress(s, onHold = { vm.holdCall() }, onRelease = { vm.releaseCallHold() })
-                VehicleScreen.V04 -> V04Call(
+                // 2차 디자인 V03·V04: 목적지로 가는 길 (주행 중이면 가운데 좁은 틀)
+                VehicleScreen.V03 -> JourneyEnRoute(
                     s, onHold = { vm.holdCall() }, onRelease = { vm.releaseCallHold() },
-                    onManual = { vm.completeManually() }, onContact = { vm.openContacts() },
+                    onContact = { vm.openContacts() }, onMenu = { vm.openSettings() },
                 )
+                // 2차 디자인 V05·V06: 도착 · 정차 중 → 여기로 부르기 / 다른장소로 가기
+                VehicleScreen.V04 -> when {
+                    s.driving -> V04Call(
+                        s, onHold = { vm.holdCall() }, onRelease = { vm.releaseCallHold() },
+                        onManual = { vm.completeManually() }, onContact = { vm.openContacts() },
+                    )
+                    s.choosingPlace -> JourneyOtherPlace(
+                        s, onGo = { vm.useAlternative(it) }, onBack = { vm.chooseOtherPlace(false) },
+                        onContact = { vm.openContacts() }, onMenu = { vm.openSettings() },
+                    )
+                    else -> JourneyArrived(
+                        s, onCallHere = { vm.callHere() }, onOtherPlace = { vm.chooseOtherPlace(true) },
+                        onContact = { vm.openContacts() }, onMenu = { vm.openSettings() },
+                    )
+                }
                 VehicleScreen.V05 -> V05Complete(s, onReject = { vm.rejectBoarding(it) }, onComplete = { vm.completeManually() }, onDone = vm::finish)
                 VehicleScreen.V06 -> V06Exception(
                     s, onAlternative = { vm.useAlternative(it) }, onContact = { vm.openContacts() },

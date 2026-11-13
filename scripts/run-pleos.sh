@@ -9,7 +9,9 @@ cd "$(dirname "$0")/.."
 SDK="${ANDROID_HOME:-$HOME/Library/Android/sdk}"
 ADB="$SDK/platform-tools/adb"
 AVD=ilink_pleos
-IMAGE="system-images/android-34/pleos_car_emulator/arm64-v8a/"
+# Apple Silicon은 arm64-v8a, Windows · Intel은 x86_64 이미지
+ABI=$( [ "$(uname -m)" = arm64 ] && echo arm64-v8a || echo x86_64 )
+IMAGE="system-images/android-34/pleos_car_emulator/$ABI/"
 HEADLESS=no; VARIANT=Demo; PKG=com.ilink.vehicle.demo
 for a in "$@"; do
   case "$a" in

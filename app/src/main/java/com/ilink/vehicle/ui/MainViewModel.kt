@@ -47,6 +47,12 @@ data class UiState(
     val contacts: List<Contacts.Contact>? = null,
     val busy: Boolean = false,
     val error: String? = null,
+    /** 출발 알림을 보낸 때 (길안내 시작 = 확정). 1분 뒤 V03 단계가 '목적지로 가는 중'으로 바뀐다 */
+    val departedAt: Long? = null,
+    /** V05 '여기로 부르기'로 지금 차 위치에 아이를 부른 때 */
+    val calledHereAt: Long? = null,
+    /** V05 '다른장소로 가기'를 눌러 V06(대안 장소 고르기)을 보는 중 */
+    val choosingPlace: Boolean = false,
 ) {
     /** 주행 중(주행 규제): 화면을 주행용으로 줄이고 정차 전용 조작을 숨긴다 */
     val driving: Boolean get() = drivingRestricted
@@ -90,6 +96,10 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             var prev: com.ilink.vehicle.data.model.SessionView? = null
             c.sessions.session.collect { next ->
                 if (next != null) VoiceCues.onSession(prev, next).forEach { c.voice.announce(it.banner, it.key) }
+                // 앱을 다시 열어 진행 중 세션을 이어 받으면 지금을 출발 시각으로 본다
+                if (next != null && !next.isTerminal && next.status?.spot == "CONFIRMED" && local.value.departedAt == null) {
+                    local.value = local.value.copy(departedAt = System.currentTimeMillis())
+                }
                 prev = next
             }
         }
@@ -100,6 +110,9 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                     RouteResult.Started -> launchCatching {
                         c.sessions.confirmRoute(spotId, null)
                         pendingSpotId = null
+                        // 처음 출발할 때만 출발 알림 시각을 잡는다 (다른 장소로 바꿔 다시 출발해도 유지)
+                        if (local.value.departedAt == null) local.value = local.value.copy(departedAt = System.currentTimeMillis())
+                        local.value = local.value.copy(choosingPlace = false, calledHereAt = null)
                     }
                     is RouteResult.Failed -> {
                         pendingSpotId = null // ERR-03: 장소 확정 금지
@@ -189,8 +202,21 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     /** V06 다시 진행 (아이가 안 탔을 때 다시 기다리기) */
     fun resume() = launchCatching { c.sessions.resume() }
 
+    /** V05 여기로 부르기: 정한 장소가 아닌 근처에 섰을 때 지금 차 위치로 아이에게 합류 안내를 바로 보낸다 (CALL-02) */
+    fun callHere() = launchCatching {
+        c.sessions.sendCallManually()
+        local.value = local.value.copy(calledHereAt = System.currentTimeMillis())
+    }
+
+    /** V05 다른장소로 가기 → V06 대안 장소 고르기 */
+    fun chooseOtherPlace(on: Boolean) {
+        local.value = local.value.copy(choosingPlace = on, error = null)
+    }
+
     /** V06 대안 확인: 장소를 바꾸고(SES-05) 그 장소로 다시 길안내 → 길안내가 시작되면 확정 */
     fun useAlternative(spot: PickupSpots.Spot) = launchCatching {
+        // 고른 순간 V06 목록을 닫는다 (다시 자동 출발하지 않게)
+        local.value = local.value.copy(choosingPlace = false, calledHereAt = null)
         c.sessions.changeSpot(spot.spotId)
         routeTo(spot)
     }
@@ -227,6 +253,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     fun finish() {
         c.sessions.clear()
+        local.value = local.value.copy(departedAt = null, calledHereAt = null, choosingPlace = false)
         go(VehicleScreen.V01)
         loadToday()
     }

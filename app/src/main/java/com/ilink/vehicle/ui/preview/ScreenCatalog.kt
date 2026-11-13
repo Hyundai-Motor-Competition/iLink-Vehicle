@@ -12,7 +12,9 @@ import com.ilink.vehicle.ui.UiState
 import com.ilink.vehicle.ui.screen.V00Connect
 import com.ilink.vehicle.ui.screen.V01Today
 import com.ilink.vehicle.ui.screen.V02Recommend
-import com.ilink.vehicle.ui.screen.V03Progress
+import com.ilink.vehicle.ui.screen.JourneyArrived
+import com.ilink.vehicle.ui.screen.JourneyEnRoute
+import com.ilink.vehicle.ui.screen.JourneyOtherPlace
 import com.ilink.vehicle.ui.screen.V04Call
 import com.ilink.vehicle.ui.screen.V05Complete
 import com.ilink.vehicle.ui.screen.V06Exception
@@ -49,7 +51,18 @@ object ScreenCatalog {
             status = SessionStatus("ON_HOLD", "APPROACHING", "NONE", "CONFIRMED"),
             incident = SessionIncident("STOP_FAILED", 2, now.toString()),
         )
+        // 2차 디자인 V03~V06: 출발 시각은 실제 시계 기준 (1분이 지나면 단계가 바뀐다)
+        val wall = System.currentTimeMillis()
+        val routing = DemoData.sessionRouting(now).let { r -> r.copy(eta = r.eta?.copy(remainingSeconds = 12 * 60)) }
+        val prep = routing.copy(children = routing.children.map { it.copy(extraPrepMinutes = 5) })
         return listOf(
+            Entry("V03_가는길_출발알림", UiState(VehicleScreen.V03, session = routing, spots = DemoData.spots, departedAt = wall)),
+            Entry("V03_가는길_출발알림_주행중", UiState(VehicleScreen.V03, session = routing, spots = DemoData.spots, departedAt = wall, drivingRestricted = true)),
+            Entry("V04_가는길_목적지로", UiState(VehicleScreen.V03, session = routing, spots = DemoData.spots, departedAt = wall - 120_000)),
+            Entry("V04_가는길_아이준비지연", UiState(VehicleScreen.V03, session = prep, spots = DemoData.spots, departedAt = wall - 120_000)),
+            Entry("V05_도착정차", UiState(VehicleScreen.V04, session = stopped, spots = DemoData.spots, departedAt = wall - 300_000)),
+            Entry("V05_도착_여기로부름", UiState(VehicleScreen.V04, session = call, spots = DemoData.spots, departedAt = wall - 300_000, calledHereAt = wall)),
+            Entry("V06_다른장소", UiState(VehicleScreen.V04, session = stopped, spots = DemoData.spots, departedAt = wall - 300_000, choosingPlace = true)),
             // 남은 시간은 실제 시계로 줄어들므로, 지금 기준 8초 전에 발급한 코드로 그린다 (디자인처럼 04:52)
             Entry("V00_연결_QR", UiState(VehicleScreen.V00, link = LinkState.Waiting(DemoData.linkCode(Instant.now().minusSeconds(8))))),
             Entry("V00_연결_주행중", UiState(VehicleScreen.V00, link = LinkState.Waiting(DemoData.linkCode(now)), drivingRestricted = true)),
@@ -86,8 +99,12 @@ object ScreenCatalog {
                     VehicleScreen.V00 -> V00Connect(s, onReissue = {})
                     VehicleScreen.V01 -> V01Today(s, onStart = {}, onSettings = {})
                     VehicleScreen.V02 -> V02Recommend(s, onRoute = {})
-                    VehicleScreen.V03 -> V03Progress(s, onHold = {}, onRelease = {})
-                    VehicleScreen.V04 -> V04Call(s, onHold = {}, onRelease = {})
+                    VehicleScreen.V03 -> JourneyEnRoute(s, onHold = {}, onRelease = {}, onContact = {}, onMenu = {})
+                    VehicleScreen.V04 -> when {
+                        s.driving -> V04Call(s, onHold = {}, onRelease = {})
+                        s.choosingPlace -> JourneyOtherPlace(s, onGo = {}, onBack = {}, onContact = {}, onMenu = {})
+                        else -> JourneyArrived(s, onCallHere = {}, onOtherPlace = {}, onContact = {}, onMenu = {})
+                    }
                     VehicleScreen.V05 -> V05Complete(s, onReject = {}, onComplete = {}, onDone = {})
                     VehicleScreen.V06 -> V06Exception(s)
                     VehicleScreen.V07 -> V07Settings(s, onBack = {}, onLogout = {})
