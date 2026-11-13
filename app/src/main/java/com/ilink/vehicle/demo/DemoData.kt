@@ -14,6 +14,7 @@ import com.ilink.vehicle.data.model.SessionRoute
 import com.ilink.vehicle.data.model.SessionSpot
 import com.ilink.vehicle.data.model.SessionStatus
 import com.ilink.vehicle.data.model.SessionView
+import com.ilink.vehicle.data.model.SpotRecommendations
 import com.ilink.vehicle.data.model.VehicleSettingsSummary
 import com.ilink.vehicle.data.model.WeeklyPickups
 import java.time.Instant
@@ -67,13 +68,25 @@ object DemoData {
                 spots = listOf(
                     PickupSpots.Spot(
                         201, "대치동수학임팩트 학원 정문 앞", LatLng(37.4995, 127.0602), LatLng(37.4996, 127.0601),
-                        isDefault = true, walkMinutes = 2, etaSeconds = 720, reason = "정차 변동이 작고 2분 이상 걷지 않아도 돼요",
+                        isDefault = true, walkMinutes = 0, etaSeconds = 720, reason = "정차 변동이 작고 2분 이상 걷지 않아도 돼요",
                     ),
                     PickupSpots.Spot(202, "학원 후문 승하차 구역", LatLng(37.4999, 127.0598), LatLng(37.4998, 127.0599), walkMinutes = 3, etaSeconds = 840),
                     PickupSpots.Spot(203, "학원 건너편 횡단보도", LatLng(37.4990, 127.0610), LatLng(37.4992, 127.0607), walkMinutes = 6, etaSeconds = 900),
                 ),
             ),
         ),
+    )
+
+    /** SPOT-04 추천: 등록 장소와 같은 자리에 운전 12 · 13 · 14분 */
+    val recommendations = SpotRecommendations(
+        supported = true,
+        items = spots.academies.first().spots.mapIndexed { i, sp ->
+            SpotRecommendations.Item(
+                rank = i + 1, kind = if (i == 0) "ROADSIDE" else "PARKING", name = sp.name, location = sp.stopPoint,
+                walkMeters = (sp.walkMinutes ?: 0) * 70, walkSeconds = (sp.walkMinutes ?: 0) * 60,
+                driveSeconds = 720 + i * 60, totalSeconds = 720 + i * 60 + (sp.walkMinutes ?: 0) * 60,
+            )
+        },
     )
 
     // ── 화면 캡처·미리보기용 세션 단계 ──
@@ -96,15 +109,16 @@ object DemoData {
         spot = SessionSpot(201, "대치동수학임팩트 학원 정문 앞", spotVersion = 1, locked = true),
         eta = SessionEta(now.plusSeconds(720).toString(), 720, now.toString()),
         route = SessionRoute(1, 4200),
-        call = SessionCall(mode = "AUTO", scheduledAt = now.plusSeconds(540).toString(), guard = CallGuard(met = true)),
+        // 가드 G6: 정차 전이라 합류 안내는 아직 (2026.11.13~)
+        call = SessionCall(mode = "AUTO", guard = CallGuard(met = false, unmet = listOf("G6"))),
     )
 
-    /** V04 합류 안내 전달됨 */
+    /** V04 정차 뒤 합류 안내 전달됨 */
     fun sessionCalled(now: Instant = Instant.now()) = sessionRouting(now).copy(
         stateVersion = 5,
-        status = SessionStatus("ACTIVE", "APPROACHING", "DELIVERED", "CONFIRMED"),
-        eta = SessionEta(now.plusSeconds(170).toString(), 170, now.toString()),
-        route = SessionRoute(1, 650),
+        status = SessionStatus("ACTIVE", "STOPPED", "DELIVERED", "CONFIRMED"),
+        eta = SessionEta(now.toString(), 0, now.toString()),
+        route = SessionRoute(1, 0),
         call = SessionCall(
             mode = "AUTO",
             callId = 9001,

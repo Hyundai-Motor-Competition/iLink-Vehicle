@@ -17,6 +17,9 @@ class VehicleApi(private val c: ApiClient) {
     // 일정 · 설정
     suspend fun weeklyPickups(weekStart: String? = null): WeeklyPickups = c.get("/v1/vehicles/me/weekly-pickups", mapOf("weekStart" to weekStart)) // SET-09
     suspend fun settingsSummary(): VehicleSettingsSummary = c.get("/v1/vehicles/me/settings-summary") // SET-10
+    /** SPOT-04. origin은 '위도,경도', arriveAt은 ISO 시각 */
+    suspend fun recommendSpots(academyId: Long, origin: LatLng, arriveAt: String? = null): SpotRecommendations =
+        c.get("/v1/pickup-spot-recommendations", mapOf("academyId" to academyId, "origin" to "${origin.lat},${origin.lng}", "arriveAt" to arriveAt))
     suspend fun pickupSpots(academyId: Long? = null): PickupSpots = c.get("/v1/families/me/pickup-spots", mapOf("academyId" to academyId)) // SPOT-01
 
     // 세션

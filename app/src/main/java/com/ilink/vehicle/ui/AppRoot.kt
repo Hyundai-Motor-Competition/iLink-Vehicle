@@ -28,7 +28,7 @@ fun AppRoot(vm: MainViewModel) {
             when (s.screen) {
                 VehicleScreen.V00 -> V00Connect(s, onReissue = vm::startLink, onLater = { activity?.moveTaskToBack(true) })
                 VehicleScreen.V01 -> V01Today(s, onStart = { vm.startPickup(it) }, onSettings = { vm.openSettings() })
-                VehicleScreen.V02 -> V02Recommend(s, onRoute = vm::routeTo)
+                VehicleScreen.V02 -> V02Recommend(s, onRoute = vm::routeTo, onMenu = { vm.openSettings() })
                 VehicleScreen.V03 -> V03Progress(s, onHold = { vm.holdCall() }, onRelease = { vm.releaseCallHold() })
                 VehicleScreen.V04 -> V04Call(
                     s, onHold = { vm.holdCall() }, onRelease = { vm.releaseCallHold() },

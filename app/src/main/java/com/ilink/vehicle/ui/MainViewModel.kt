@@ -36,6 +36,8 @@ data class UiState(
     /** V01 날짜 띠: 지난주 ~ 다음 주 (3주) */
     val calendar: List<WeeklyPickups.Day> = emptyList(),
     val spots: PickupSpots? = null,
+    /** SPOT-04 추천 결과 (V02 소요 시간 · 도착 시각). 없으면 장소 목록 값만 쓴다 */
+    val recommendations: com.ilink.vehicle.data.model.SpotRecommendations? = null,
     val settings: VehicleSettingsSummary? = null,
     val drivingRestricted: Boolean = false,
     val doorSignalAvailable: Boolean = true,
@@ -155,7 +157,16 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     fun startPickup(scheduleIds: List<Long>) = launchCatching {
         c.sessions.start(scheduleIds)
         local.value = local.value.copy(spots = c.api.pickupSpots())
+        loadRecommendations()
         PickupSessionService.start(getApplication())
+    }
+
+    /** SPOT-04: 지금 위치에서 학원까지의 추천 후보. 실패해도 V02는 장소 목록만으로 그린다 */
+    private suspend fun loadRecommendations() {
+        val academyId = local.value.spots?.academies?.firstOrNull()?.academyId ?: return
+        val here = c.location.location.value ?: return
+        runCatching { c.api.recommendSpots(academyId, com.ilink.vehicle.data.model.LatLng(here.lat, here.lng)) }
+            .onSuccess { local.value = local.value.copy(recommendations = it) }
     }
 
     /** V02 '이 장소로 길안내': 내비 길안내 성공(onRouteStarted) 뒤에만 SES-04로 확정 */

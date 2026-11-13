@@ -39,7 +39,12 @@ object ScreenCatalog {
             call = call.call?.copy(progress = call.call.progress?.copy(acknowledgedAt = now.toString())),
             children = call.children.map { it.copy(acknowledgedAt = now.toString()) },
         )
-        val stopped = acked.copy(status = acked.status?.copy(vehicle = "STOPPED"))
+        // 정차 직후 · 합류 안내 보내는 중 (가드 G6)
+        val stopped = DemoData.sessionRouting(now).let { r ->
+            r.copy(status = r.status?.copy(vehicle = "STOPPED"), eta = r.eta?.copy(remainingSeconds = 0), route = r.route?.copy(remainingMeters = 0))
+        }
+        // 도착 3분 전 · 실내 준비 알림을 보낸 뒤
+        val near = DemoData.sessionRouting(now).let { r -> r.copy(eta = r.eta?.copy(remainingSeconds = 170), route = r.route?.copy(remainingMeters = 650)) }
         val stopFailed = DemoData.sessionRouting(now).copy(
             status = SessionStatus("ON_HOLD", "APPROACHING", "NONE", "CONFIRMED"),
             incident = SessionIncident("STOP_FAILED", 2, now.toString()),
@@ -54,9 +59,11 @@ object ScreenCatalog {
             Entry("V02_장소선택_주행중", UiState(VehicleScreen.V02, session = DemoData.sessionSelecting(now), spots = DemoData.spots, drivingRestricted = true)),
             Entry("V03_진행", UiState(VehicleScreen.V03, session = DemoData.sessionRouting(now))),
             Entry("V03_진행_주행중", UiState(VehicleScreen.V03, session = DemoData.sessionRouting(now), drivingRestricted = true)),
-            Entry("V04_합류안내_주행중", UiState(VehicleScreen.V04, session = acked, drivingRestricted = true)),
+            Entry("V03_곧도착_준비알림", UiState(VehicleScreen.V03, session = near)),
             Entry("V04_정차", UiState(VehicleScreen.V04, session = stopped)),
-            Entry("V04_수동완료", UiState(VehicleScreen.V04, session = stopped, doorSignalAvailable = false)),
+            Entry("V04_합류안내", UiState(VehicleScreen.V04, session = acked)),
+            Entry("V04_합류안내_주행중", UiState(VehicleScreen.V04, session = acked, drivingRestricted = true)),
+            Entry("V04_수동완료", UiState(VehicleScreen.V04, session = acked, doorSignalAvailable = false)),
             Entry("V05_탑승감지", UiState(VehicleScreen.V05, session = DemoData.sessionBoarding(now))),
             Entry("V05_완료", UiState(VehicleScreen.V05, session = DemoData.sessionCompleted(now))),
             Entry("V05_완료_주행중", UiState(VehicleScreen.V05, session = DemoData.sessionCompleted(now), drivingRestricted = true)),

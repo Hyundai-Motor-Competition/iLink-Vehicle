@@ -54,6 +54,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import com.ilink.vehicle.data.model.PickupSpots
 import com.ilink.vehicle.data.model.SessionView
+import com.ilink.vehicle.domain.VoiceCues
 import com.ilink.vehicle.data.model.WeeklyPickups
 import com.ilink.vehicle.R
 import androidx.compose.ui.res.stringResource
@@ -216,7 +217,7 @@ private fun V01Parking(
 }
 
 /** V01 개선안 색 (다크 전용, 디자인에서 뽑은 값) */
-private object V01 {
+internal object V01 {
     val bg = Color(0xFF111200)
     val chip = Color(0xFF21211E)
     val card = Color(0xFF2E2E2C)
@@ -384,81 +385,17 @@ private fun ReadinessCard(missing: List<String>) {
  * 내비 적용 성공 후에만 장소 확정 (F1-06, ERR-03).
  */
 @Composable
-fun V02Recommend(s: UiState, onRoute: (PickupSpots.Spot) -> Unit) {
-    val c = Pleos.colors
+fun V02Recommend(s: UiState, onRoute: (PickupSpots.Spot) -> Unit, onMenu: () -> Unit = {}) {
     val spots = s.spots?.academies?.flatMap { it.spots }.orEmpty().sortedByDescending { it.isDefault }
     var selectedId by remember(spots) { mutableStateOf(spots.firstOrNull()?.spotId) }
     val best = spots.firstOrNull { it.spotId == selectedId } ?: spots.firstOrNull()
-    val alts = spots.filter { it.spotId != best?.spotId }
 
     if (s.driving) {
         V02Driving(s, best, onRoute)
         return
     }
-    PleosWindow("추천 픽업 장소") {
-        Row(Modifier.weight(1f)) {
-            Column(Modifier.weight(771f)) {
-                SpotMap(mapLabel(s, best), alts.size, Modifier.fillMaxWidth().height(u(322)))
-                Spacer(Modifier.height(u(20)))
-                if (best == null) {
-                    PleosCard(Modifier.fillMaxWidth()) {
-                        Text("안전하게 만날 장소가 없어요", color = c.text, fontSize = us(26), fontWeight = FontWeight.Bold)
-                        Text("휴대전화 앱에서 픽업 장소를 등록해 주세요", color = c.subText, fontSize = us(19))
-                    }
-                } else {
-                    PleosCard(Modifier.fillMaxWidth()) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                best.name ?: "-", color = c.text, fontSize = us(26), fontWeight = FontWeight.Bold,
-                                maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f),
-                            )
-                            // SPOT-01은 보호자가 승인한 장소만 준다
-                            Pill("승인됨", accent = true)
-                        }
-                        best.etaSeconds?.let { eta ->
-                            InfoLine({ ClockIcon(u(30), c.subText) }, "정차 예상", "약 ${(eta + 59) / 60}분 후 도착 · ${clockIn(eta)}")
-                        }
-                        best.walkMinutes?.let { w ->
-                            if (best.reason == null) InfoLine({ InfoIcon(u(30), c.subText) }, "아이 보행 ${w}분", null)
-                        }
-                        best.reason?.let { InfoLine({ InfoIcon(u(30), c.subText) }, it, null) }
-                    }
-                }
-                s.error?.let { Text(it, color = c.danger, fontSize = us(18), modifier = Modifier.padding(top = u(10))) }
-            }
-            Spacer(Modifier.width(u(34)))
-            Column(Modifier.weight(460f)) {
-                Label("대안 장소", Modifier.padding(start = u(4), top = u(4), bottom = u(14)))
-                if (alts.isEmpty()) Text("다른 후보가 없어요", color = c.subText, fontSize = us(19), modifier = Modifier.padding(start = u(4)))
-                alts.forEach { alt ->
-                    Row(
-                        Modifier.fillMaxWidth().padding(bottom = u(18)).clip(RoundedCornerShape(u(22))).background(c.card)
-                            .clickable(role = Role.Button) { selectedId = alt.spotId }
-                            .padding(horizontal = u(26), vertical = u(20)),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Box(Modifier.size(u(56)).clip(CircleShape).background(c.iconCircle), contentAlignment = Alignment.Center) {
-                            PinIcon(u(30), c.text)
-                        }
-                        Spacer(Modifier.width(u(22)))
-                        Column(Modifier.weight(1f)) {
-                            Text(alt.name ?: "-", color = c.text, fontSize = us(22), fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                            Text(
-                                listOfNotNull(
-                                    alt.etaSeconds?.let { "약 ${(it + 59) / 60}분 후 도착" },
-                                    alt.walkMinutes?.let { "보행 ${it}분" },
-                                ).joinToString(" · ").ifEmpty { "-" },
-                                color = c.subText, fontSize = us(18),
-                            )
-                        }
-                        ChevronIcon(u(34), c.subText)
-                    }
-                }
-            }
-        }
-        Spacer(Modifier.height(u(18)))
-        PleosButton("이 장소로 길안내", enabled = best != null && !s.busy) { best?.let(onRoute) }
-    }
+    // 정차 중: assets/V02 개선안 (오른쪽 작은 지도)
+    V02Parking(s, spots, selectedId, onSelect = { selectedId = it }, onRoute = onRoute, onMenu = onMenu)
 }
 
 /** V02 주행 중 (assets/V02 픽업 장소 선택 Driving): 추천 1곳과 길안내만, 대안은 정차 후 */
@@ -556,16 +493,17 @@ fun V03Progress(s: UiState, onHold: () -> Unit, onRelease: () -> Unit) {
                 PleosCard(Modifier.fillMaxWidth(), padding = 22) {
                     val more = if (v.children.size > 1) " · ${child?.name ?: "아이"} 외 ${v.children.size - 1}명" else ""
                     Label("아이 준비 상태$more", Modifier.padding(bottom = u(6)))
-                    StepRow("준비 알림 발송", null, StepState.Done)
+                    // 서버 규칙(2026.11.13~): 도착 3분 전 · 700m에 실내 준비 알림, 합류 안내는 정차 뒤
+                    val near = VoiceCues.isNear(v)
+                    StepRow(
+                        "준비 알림 발송", if (near) null else "도착 3분 전 또는 700m에 보내요",
+                        if (near) StepState.Done else StepState.Pending,
+                    )
                     val prep = child?.extraPrepMinutes?.takeIf { it > 0 }?.let { "준비 시간 +${it}분 요청" }
-                    StepRow("실내에서 준비 중", prep, StepState.Current)
+                    StepRow("실내에서 준비 중", prep, if (near) StepState.Current else StepState.Pending)
                     StepRow(
                         "합류 안내 자동 발송",
-                        when {
-                            call?.held == true -> "보류 중"
-                            call?.scheduledAt != null -> "${clock(call.scheduledAt)} 예정"
-                            else -> "도착 3분 전"
-                        },
+                        if (call?.held == true) "보류 중" else "정차하면 보내요",
                         StepState.Pending,
                     )
                 }
@@ -607,8 +545,7 @@ private fun V03Driving(v: SessionView, onHold: () -> Unit, onRelease: () -> Unit
                 when {
                     call?.held == true -> "합류 안내 보류 중 · 보류를 풀면 다시 보내요"
                     call?.mode == "GUARDIAN_CONFIRM" -> "합류 안내는 보호자 확인 후 발송"
-                    call?.scheduledAt != null -> "합류 안내 자동 발송 ${clock(call.scheduledAt)} 예정"
-                    else -> "합류 안내는 도착 3분 전에 자동 발송"
+                    else -> "합류 안내는 정차하면 자동 발송"
                 },
                 color = c.subText, fontSize = us(18), modifier = Modifier.padding(top = u(6)),
             )
@@ -636,9 +573,9 @@ private fun callTexts(v: SessionView): Pair<String, String> {
     val c = v.call
     return when {
         c?.held == true -> "합류 안내 보류 중" to "보류를 풀면 다시 자동으로 보내요"
-        c?.mode == "GUARDIAN_CONFIRM" -> "합류 안내 보호자 확인" to "도착 3분 전에 보호자 확인 후 보내요"
-        c?.scheduledAt != null -> "합류 안내 자동 발송" to "도착 3분 전 또는 700m · ${clock(c.scheduledAt)} 예정"
-        else -> "합류 안내 자동 발송" to "도착 3분 전 또는 700m에 보내요"
+        c?.mode == "GUARDIAN_CONFIRM" -> "합류 안내 보호자 확인" to "정차하면 보호자 확인 후 보내요"
+        VoiceCues.isNear(v) -> "합류 안내 자동 발송" to "실내 준비 알림을 보냈어요 · 정차하면 합류 안내"
+        else -> "합류 안내 자동 발송" to "도착 3분 전 준비 알림 · 정차하면 합류 안내"
     }
 }
 

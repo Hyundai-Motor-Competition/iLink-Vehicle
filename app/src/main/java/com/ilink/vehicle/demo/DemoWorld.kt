@@ -33,7 +33,7 @@ import kotlinx.coroutines.launch
  *
  * 길안내를 시작하면(이 장소로 길안내) 약 1분 동안 차가 다가오고(ETA 300초 → 0초, 실제보다 5배 빠름),
  * 그동안 기어가 D라 화면이 주행용으로 바뀐다.
- * 도착하면 기어 P → 3초 뒤 뒷좌석 오른쪽 문 열림 → 2초 뒤 닫힘을 낸다.
+ * 도착하면 기어 P(이때 합류 안내 발송) → 9초 뒤 뒷좌석 오른쪽 문 열림 → 2초 뒤 닫힘을 낸다.
  * 앱의 서비스·도어 판정·서버 동기화 로직은 실제와 똑같이 이 신호를 처리한다.
  */
 class DemoWorld(private val scope: CoroutineScope, approveAfterPolls: Int = 6) {
@@ -122,7 +122,8 @@ class DemoWorld(private val scope: CoroutineScope, approveAfterPolls: Int = 6) {
         // 도착 → 정차(P) → 아이가 뒷문으로 탑승
         delay(1_500)
         _gear.value = "P"
-        delay(3_000)
+        // 정차 → 합류 안내 발송 → 자녀가 걸어오는 시간
+        delay(9_000)
         _doors.emit(DoorSignal(Door.REAR_RIGHT, open = true, at = System.currentTimeMillis()))
         delay(2_000)
         _doors.emit(DoorSignal(Door.REAR_RIGHT, open = false, at = System.currentTimeMillis()))

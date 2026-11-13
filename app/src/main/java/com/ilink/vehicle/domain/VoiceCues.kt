@@ -18,8 +18,16 @@ object VoiceCues {
     private val SEOUL = ZoneId.of("Asia/Seoul")
     private val HHMM = DateTimeFormatter.ofPattern("HH:mm")
 
-    /** 합류 안내 예고(U04)를 내는 남은 시간: 3분 안내 직전 1분 */
-    private const val PRE_CALL_SECONDS = 240
+    /** 서버가 실내 준비 알림을 보내는 기준: 도착 3분 전 또는 700m */
+    const val PREPARE_SECONDS = 180
+    const val PREPARE_METERS = 700
+
+    /** 도착 3분 전 또는 700m 안 (서버의 실내 준비 알림 기준) */
+    fun isNear(v: SessionView): Boolean {
+        val left = v.eta?.remainingSeconds
+        val meters = v.route?.remainingMeters
+        return (left != null && left <= PREPARE_SECONDS) || (meters != null && meters <= PREPARE_METERS)
+    }
 
     /** U01 오늘 픽업 일정 안내 (V01에 들어올 때 하루 한 번) */
     fun today(date: String, pickups: List<WeeklyPickups.Pickup>): Cue? {
@@ -56,13 +64,13 @@ object VoiceCues {
                 "U03-$id-${next.spot?.spotVersion}",
             )
         }
-        // U04 합류 안내 자동 발송 예고: 아직 안 보냈고 보류도 아닐 때 3분 안내 1분 전
+        // U04 합류 안내 예고: 도착 3분 전(또는 700m)에 자녀에게 실내 준비 알림이 가고,
+        // 합류 안내는 정차하면 보낸다 (가드 G6, 2026.11.13~). 아직 안 보냈고 보류도 아닐 때 한 번
         val call = next.call
-        val left = next.eta?.remainingSeconds
         if (confirmed && call != null && call.callId == null && !call.held && call.mode != "GUARDIAN_CONFIRM" &&
-            left != null && left in (181..PRE_CALL_SECONDS)
+            next.status?.vehicle != "STOPPED" && isNear(next) && !(prev != null && isNear(prev) && prev.status?.spot == "CONFIRMED")
         ) {
-            out += Cue(Banner(VoiceCue.U04, "도착 3분 전 · 합류 안내 발송", "'보류'라고 말하면 보내지 않아요"), "U04-$id-${next.spot?.spotVersion}")
+            out += Cue(Banner(VoiceCue.U04, "곧 도착 · 자녀에게 준비 알림", "정차하면 합류 안내를 보내요. '보류'라고 말하면 보내지 않아요"), "U04-$id-${next.spot?.spotVersion}")
         }
         // U05 합류 안내 발송 결과
         if (call?.callId != null && prev?.call?.callId == null) {

@@ -91,6 +91,8 @@ dependencies {
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.okhttp)
+    // V02 오른쪽 작은 지도 (OpenStreetMap, 키 없이 사용)
+    implementation(libs.osmdroid)
     implementation(libs.okhttp.sse)
     implementation(libs.zxing.core)
 

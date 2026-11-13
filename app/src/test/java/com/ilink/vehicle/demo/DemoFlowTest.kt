@@ -71,17 +71,21 @@ class DemoFlowTest {
             sessions.confirmRoute(DemoData.spots.academies.first().spots.first().spotId, null)
             assertEquals(VehicleScreen.V03, screen())
 
-            // 3분보다 멀면 예약만, 3분 이내면 합류 안내 → V04
-            sessions.sendTelemetry(telemetry(400))
-            sessions.refresh()
-            assertNotNull(sessions.session.value!!.call?.scheduledAt)
+            // 가드 G6: 3분 이내로 와도 달리는 동안은 합류 안내를 보내지 않는다 (V03 유지)
             sessions.sendTelemetry(telemetry(170))
             sessions.refresh()
-            assertEquals(VehicleScreen.V04, screen())
-            assertEquals("CALLED", sessions.session.value!!.children.first().phase)
+            assertEquals(null, sessions.session.value!!.call?.callId)
+            assertEquals(listOf("G6"), sessions.session.value!!.call?.guard?.unmet)
+            assertEquals(VehicleScreen.V03, screen())
 
-            // 정차 → 도어 개폐 → 탑승 감지(V05) → 수동 완료
+            // 정차하면 합류 안내 → V04
             sessions.sendVehicleEvent(event("STOPPED"))
+            sessions.refresh()
+            assertNotNull(sessions.session.value!!.call?.callId)
+            assertEquals("CALLED", sessions.session.value!!.children.first().phase)
+            assertEquals(VehicleScreen.V04, screen())
+
+            // 도어 개폐 → 탑승 감지(V05) → 수동 완료
             sessions.sendVehicleEvent(event("DOOR_CYCLE"))
             sessions.refresh()
             assertEquals(VehicleScreen.V05, screen())
@@ -98,12 +102,12 @@ class DemoFlowTest {
             sessions.confirmRoute(201, null)
             sessions.holdCall()
             sessions.sendTelemetry(telemetry(100))
-            sessions.refresh()
-            assertEquals(null, sessions.session.value!!.call?.callId)
-
-            sessions.releaseCallHold()
-            sessions.sendTelemetry(telemetry(90))
             sessions.sendVehicleEvent(event("STOPPED"))
+            sessions.refresh()
+            assertEquals(null, sessions.session.value!!.call?.callId) // 정차해도 보류 중이면 안 보냄
+
+            sessions.releaseCallHold() // 정차 중에 보류를 풀면 바로 보낸다
+            assertNotNull(sessions.session.value!!.call?.callId)
             sessions.sendVehicleEvent(event("DOOR_CYCLE"))
             sessions.refresh()
             sessions.rejectBoarding(null)

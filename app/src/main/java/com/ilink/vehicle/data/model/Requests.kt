@@ -81,3 +81,18 @@ data class VehicleEventRequest(
     @Serializable data class Contact(val name: String? = null, val role: String? = null, val phone: String? = null)
 }
 @Serializable data class SessionEventPage(val items: List<SessionEvent> = emptyList(), val hasMore: Boolean = false)
+
+/** SPOT-04 픽업 장소 추천: 학원 근처 공영주차장 · 길가 정차 후보 (순위순). 지원 지역 밖이면 supported = false */
+@Serializable data class SpotRecommendations(val supported: Boolean = false, val items: List<Item> = emptyList()) {
+    @Serializable data class Item(
+        val rank: Int = 0,
+        val kind: String? = null,
+        val name: String? = null,
+        val location: LatLng? = null,
+        val walkMeters: Int? = null,
+        val walkSeconds: Int? = null,
+        val driveSeconds: Int? = null,
+        val totalSeconds: Int? = null,
+        val cautions: List<String> = emptyList(),
+    )
+}

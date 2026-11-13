@@ -41,8 +41,9 @@ import java.time.Instant
  *
  * 흐름(서버 규칙을 단순화):
  *  연결: 코드 발급 → 약 12초 뒤 LINKED (V00 화면을 볼 수 있게)
- *  세션: 시작 → 경로 확정(CONFIRMED) → 텔레메트리 ETA 180초 이하면 합류 안내(callId) 생성
- *        → STOPPED 이벤트면 아이 MEETING → DOOR_CYCLE이면 탑승 감지, 10초 뒤 COMPLETED
+ *  세션: 시작 → 경로 확정(CONFIRMED) → 달리는 동안은 가드 G6(정차) 미충족
+ *        → STOPPED 이벤트면 합류 안내(callId) 발송 → 4초 뒤 자녀 열람(MEETING)
+ *        → DOOR_CYCLE이면 탑승 감지, 10초 뒤 COMPLETED
  */
 /** @param approveAfterPolls 연결 상태를 이만큼 조회하면 보호자가 승인한 것으로 본다 (2초 간격, 기본 6번 ≈ 12초) */
 class DemoServer(private val scope: CoroutineScope, private val approveAfterPolls: Int = 6) : Interceptor {
@@ -126,6 +127,7 @@ class DemoServer(private val scope: CoroutineScope, private val approveAfterPoll
             path == "/v1/vehicles/me/weekly-pickups" -> ok(DemoData.weekly(weekStart = weekStartQuery?.let { runCatching { java.time.LocalDate.parse(it) }.getOrNull() }))
             path == "/v1/vehicles/me/settings-summary" -> ok(DemoData.settings)
             path == "/v1/families/me/pickup-spots" -> ok(DemoData.spots)
+            path == "/v1/pickup-spot-recommendations" -> ok(DemoData.recommendations)
 
             // 세션
             method == "GET" && path == "/v1/pickup-sessions/active" -> {
@@ -172,7 +174,8 @@ class DemoServer(private val scope: CoroutineScope, private val approveAfterPoll
                 }
             }
             "PUT" to "call-hold" -> update { it.copy(call = it.call?.copy(held = true)) }
-            "DELETE" to "call-hold" -> update { it.copy(call = it.call?.copy(held = false)) }
+            // 보류를 풀 때 이미 정차해 있으면 바로 보낸다
+            "DELETE" to "call-hold" -> update { callIfReady(it.copy(call = it.call?.copy(held = false)), Instant.now()) }
             "PUT" to "hold" -> update { it.copy(status = it.status?.copy(session = "ON_HOLD")) }
             "DELETE" to "hold" -> update { it.copy(status = it.status?.copy(session = "ACTIVE"), incident = null) }
             "POST" to "cancellation" -> {
@@ -237,24 +240,13 @@ class DemoServer(private val scope: CoroutineScope, private val approveAfterPoll
                 next = next.copy(
                     call = call.copy(progress = call.progress.copy(acknowledgedAt = now.toString())),
                     status = next.status?.copy(call = "ACKNOWLEDGED"),
-                    children = next.children.map { c -> c.copy(acknowledgedAt = now.toString()) },
+                    children = next.children.map { c -> c.copy(acknowledgedAt = now.toString(), phase = "MEETING") },
                 )
             }
-            if (call != null && call.callId == null && !call.held) {
-                next = if (t.navEtaSeconds <= 180) {
-                    next.copy(
-                        call = call.copy(
-                            callId = 9001,
-                            scheduledAt = null,
-                            guard = CallGuard(met = true),
-                            progress = CallProgress(now.toString(), now.toString(), now.plusSeconds(1).toString()),
-                        ),
-                        status = next.status?.copy(call = "DELIVERED"),
-                        children = next.children.map { it.copy(phase = "CALLED", callNotBefore = now.toString()) },
-                    )
-                } else {
-                    next.copy(call = call.copy(guard = CallGuard(met = true), scheduledAt = now.plusSeconds((t.navEtaSeconds - 180).toLong()).toString()))
-                }
+            // 가드 G6(2026.11.13~): 합류 안내는 정차 뒤에만. 달리는 동안은 G6 미충족으로 보인다.
+            // 도착 3분 전(또는 700m)에는 자녀에게 실내 준비 알림만 간다 (화면은 ETA로 판단)
+            if (call != null && call.callId == null && next.status?.vehicle != "STOPPED") {
+                next = next.copy(call = call.copy(guard = CallGuard(met = false, unmet = listOf("G6")), scheduledAt = null))
             }
             next
         }
@@ -264,12 +256,14 @@ class DemoServer(private val scope: CoroutineScope, private val approveAfterPoll
     private fun vehicleEvent(e: VehicleEventRequest): Pair<Int, String> {
         val now = Instant.now()
         when (e.type) {
+            // 정차하면 합류 안내 판정을 다시 한다: 자동 방식이고 보류가 아니면 이때 보낸다
             "STOPPED" -> update {
-                it.copy(
-                    status = it.status?.copy(vehicle = "STOPPED"),
-                    eta = it.eta?.copy(remainingSeconds = 0, stopEtaAt = now.toString()),
-                    children = it.children.map { c -> if (c.phase == "CALLED") c.copy(phase = "MEETING", acknowledgedAt = c.acknowledgedAt ?: now.toString()) else c },
-                    call = it.call?.copy(progress = it.call.progress?.let { p -> p.copy(acknowledgedAt = p.acknowledgedAt ?: now.toString()) }),
+                callIfReady(
+                    it.copy(
+                        status = it.status?.copy(vehicle = "STOPPED"),
+                        eta = it.eta?.copy(remainingSeconds = 0, stopEtaAt = now.toString()),
+                    ),
+                    now,
                 )
             }
             "DEPARTED" -> update { it.copy(status = it.status?.copy(vehicle = "DEPARTED")) }
@@ -285,6 +279,22 @@ class DemoServer(private val scope: CoroutineScope, private val approveAfterPoll
             }
         }
         return 202 to ""
+    }
+
+    /** 정차 중 · 자동 방식 · 보류 아님 · 아직 안 보냄이면 합류 안내를 보낸다 (가드 G1~G6 통과로 본다) */
+    private fun callIfReady(s: SessionView, now: Instant): SessionView {
+        val call = s.call ?: return s
+        if (s.status?.vehicle != "STOPPED" || call.callId != null || call.held || call.mode == "GUARDIAN_CONFIRM") return s
+        return s.copy(
+            call = call.copy(
+                callId = 9001,
+                scheduledAt = null,
+                guard = CallGuard(met = true),
+                progress = CallProgress(now.toString(), now.toString(), now.plusSeconds(1).toString()),
+            ),
+            status = s.status?.copy(call = "DELIVERED"),
+            children = s.children.map { it.copy(phase = "CALLED", callNotBefore = now.toString()) },
+        )
     }
 
     private fun complete(): Pair<Int, String> = update {

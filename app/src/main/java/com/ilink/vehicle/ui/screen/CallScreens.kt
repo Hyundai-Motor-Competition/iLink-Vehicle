@@ -58,7 +58,10 @@ import java.time.Instant
 
 private const val GAP = 19
 
-/** V04 합류 진행 상태. 디자인은 주행 중만 있어 정차 중에도 같은 틀을 쓰고 정차 전용 버튼만 더한다 */
+/**
+ * V04 합류 진행 상태. 디자인은 주행 중만 있어 정차 중에도 같은 틀을 쓰고 정차 전용 버튼만 더한다.
+ * 단계 순서는 서버 규칙(가드 G6)대로 정차 확인 → 합류 안내 발송 → 자녀 열람.
+ */
 @Composable
 fun V04Call(s: UiState, onHold: () -> Unit, onRelease: () -> Unit, onManual: () -> Unit = {}, onContact: () -> Unit = {}) {
     val v = s.session ?: return
@@ -69,27 +72,38 @@ fun V04Call(s: UiState, onHold: () -> Unit, onRelease: () -> Unit, onManual: () 
     val leftMin = v.eta?.remainingSeconds?.let { (it + 59) / 60 }
 
     PleosWindow("합류 진행 상태") {
+        // 서버 규칙(2026.11.13~, 가드 G6): 합류 안내는 정차를 확인한 뒤에 나간다
         when {
+            call?.held == true -> StatusCard("합류 안내를 보류했어요", "보류를 풀면 바로 보내요") { IconCircle(c.iconCircle) { SpinnerIcon(it, c.text) } }
             stopped && !s.doorSignalAvailable -> StatusCard("문 열림 신호를 받을 수 없어요", "아이가 타면 직접 완료해 주세요") {
                 IconCircle(c.iconCircle) { InfoIcon(it, c.text) }
             }
-            stopped -> StatusCard("정차를 확인했어요", "아이가 타면 자동으로 확인해요") { IconCircle(c.meet) { CarIcon(it, Color.White) } }
-            call?.held == true -> StatusCard("합류 안내를 보류했어요", "보류를 풀면 바로 보내요") { IconCircle(c.iconCircle) { SpinnerIcon(it, c.text) } }
             call?.callId != null -> StatusCard(
                 if (call.mode == "GUARDIAN_CONFIRM") "보호자 확인 후 합류 안내를 보냈어요" else "합류 안내를 자동으로 보냈어요",
-                listOfNotNull(
-                    leftMin?.takeIf { it > 0 }?.let { "도착 ${it}분 전" },
-                    if (p?.acknowledgedAt != null) "아이가 만남 장소로 이동 중" else "자녀 열람 전",
-                ).joinToString(" · "),
+                if (p?.acknowledgedAt != null) "아이가 만남 장소로 이동 중" else "자녀 열람 전 · 이동 확정 아님",
             ) { IconCircle(c.meet) { SendIcon(it, Color.White) } }
-            else -> StatusCard("합류 안내를 준비하고 있어요", "도착 3분 전에 자동으로 보내요") { IconCircle(c.iconCircle) { SpinnerIcon(it, c.text) } }
+            stopped -> StatusCard("정차를 확인했어요", "합류 안내를 보내고 있어요") { IconCircle(c.meet) { CarIcon(it, Color.White) } }
+            else -> StatusCard(
+                "곧 도착해요",
+                listOfNotNull(leftMin?.takeIf { it > 0 }?.let { "도착 ${it}분 전" }, "정차하면 합류 안내를 보내요").joinToString(" · "),
+            ) { IconCircle(c.iconCircle) { SpinnerIcon(it, c.text) } }
         }
         Spacer(Modifier.height(u(GAP)))
         PleosCard(Modifier.fillMaxWidth(), padding = 22) {
             StepRow(
+                "정차 확인",
+                if (stopped) null else "도착하면 차량 신호 + 장소 일치로 확인",
+                if (stopped) StepState.Done else StepState.Current, green = true, markSize = 34,
+            )
+            StepRow(
                 if (p?.sentAt != null) "합류 안내 자동 발송 · ${clock(p.sentAt)}" else "합류 안내 자동 발송",
-                if (p?.sentAt == null) "도착 3분 전 또는 700m에 보내요" else null,
-                if (p?.sentAt != null) StepState.Done else StepState.Current, green = true, markSize = 34,
+                if (p?.sentAt == null) "정차하면 보내요" else null,
+                when {
+                    p?.sentAt != null -> StepState.Done
+                    stopped -> StepState.Current
+                    else -> StepState.Pending
+                },
+                green = true, markSize = 34,
             )
             StepRow(
                 if (p?.acknowledgedAt != null) "자녀 열람 · 만남 장소로 이동 중" else "자녀 열람",
@@ -101,11 +115,6 @@ fun V04Call(s: UiState, onHold: () -> Unit, onRelease: () -> Unit, onManual: () 
                 },
                 green = true, markSize = 34,
             )
-            StepRow(
-                if (stopped) "정차 확인 · 아이를 기다리는 중" else "정차 확인",
-                if (stopped) null else "도착하면 차량 신호 + 장소 일치로 확인",
-                if (stopped) StepState.Done else StepState.Pending, green = true, markSize = 34,
-            )
         }
         Spacer(Modifier.weight(1f))
         s.error?.let { ErrorLine(it) }
@@ -113,10 +122,11 @@ fun V04Call(s: UiState, onHold: () -> Unit, onRelease: () -> Unit, onManual: () 
             PleosButton("탑승 확인 및 완료", enabled = !s.busy, onClick = onManual)
             Spacer(Modifier.height(u(GAP)))
         }
-        if (!s.driving && stopped) {
-            PleosButton("직접 연락", ButtonTone.Secondary, onClick = onContact)
-        } else if (call?.held == true) {
+        if (call?.held == true) {
+            // 정차 중에 보류를 풀면 서버가 바로 합류 안내를 보낸다
             PleosButton("호출 보류 해제", ButtonTone.Secondary, onClick = onRelease)
+        } else if (!s.driving && stopped) {
+            PleosButton("직접 연락", ButtonTone.Secondary, onClick = onContact)
         } else {
             PleosButton("호출 보류", ButtonTone.Secondary, enabled = !s.busy, onClick = onHold)
         }

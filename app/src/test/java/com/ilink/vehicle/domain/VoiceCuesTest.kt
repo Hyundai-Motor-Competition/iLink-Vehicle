@@ -26,9 +26,19 @@ class VoiceCuesTest {
         assertEquals(VoiceCue.U06, VoiceCues.onSession(DemoData.sessionCalled(now), DemoData.sessionNotBoarded(now)).single().banner.cue)
     }
 
-    @Test fun preCallWarningOnlyBeforeThreeMinutes() {
+    /** 도착 3분 전(또는 700m)에 한 번: 준비 알림 · 정차하면 합류 안내 (가드 G6) */
+    @Test fun prepareNoticeAtThreeMinutesOnce() {
         val r = DemoData.sessionRouting(now)
-        val near = r.copy(eta = r.eta?.copy(remainingSeconds = 200))
+        val far = r.copy(eta = r.eta?.copy(remainingSeconds = 200), route = r.route?.copy(remainingMeters = 1200))
+        val near = r.copy(eta = r.eta?.copy(remainingSeconds = 170))
+        assertTrue(VoiceCues.onSession(r, far).isEmpty())
+        assertEquals(VoiceCue.U04, VoiceCues.onSession(far, near).single().banner.cue)
+        assertTrue(VoiceCues.onSession(near, near.copy(eta = near.eta?.copy(remainingSeconds = 120))).isEmpty())
+    }
+
+    @Test fun nearByDistanceToo() {
+        val r = DemoData.sessionRouting(now)
+        val near = r.copy(route = r.route?.copy(remainingMeters = 650))
         assertEquals(VoiceCue.U04, VoiceCues.onSession(r, near).single().banner.cue)
     }
 }
