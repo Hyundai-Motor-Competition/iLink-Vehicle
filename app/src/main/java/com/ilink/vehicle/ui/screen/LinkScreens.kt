@@ -44,59 +44,16 @@ import com.ilink.vehicle.ui.component.us
 import com.ilink.vehicle.ui.component.SecondaryAction
 
 /**
- * V00 서비스 시작·연결 (assets/V00 … Landscape · Light / Dark).
- * 주행 중에는 QR을 숨긴다 (QA-27).
+ * V00 서비스 시작·연결. 정차 중은 2차 시안(V00Parking), 주행 중에는 QR을 숨기고 안내만 (QA-27).
  */
 @Composable
 fun V00Connect(s: UiState, onReissue: () -> Unit, onLater: () -> Unit = {}) {
-    val c = Pleos.colors
     if (s.driving) {
         V00Driving()
         return
     }
-    PleosWindow(stringResource(R.string.app_name), titleBold = false) {
-        Column(Modifier.weight(1f).padding(horizontal = u(24))) {
-            Text(
-                "스마트 폰을 연결하면 픽업을 시작할 수 있어요.",
-                color = c.text, fontSize = us(32), fontWeight = FontWeight.SemiBold,
-                modifier = Modifier.padding(top = u(24), bottom = u(26)),
-            )
-            // QR 영역
-            Box(
-                Modifier.fillMaxWidth().weight(1f).clip(RoundedCornerShape(u(24))).background(c.panel),
-                contentAlignment = Alignment.Center,
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    when {
-                        s.error != null && s.link !is LinkState.Waiting -> PanelMessage(s.error, "새 QR 코드를 받아 다시 시도해 주세요")
-                        s.link is LinkState.Waiting -> {
-                            // 여백 1칸 포함 283 → 보이는 QR이 디자인의 262와 같다
-                            QrCode(s.link.code.qrPayload, u(283), dot = c.qrDot, background = c.panel)
-                            Spacer(Modifier.height(u(18)))
-                            Text("스마트폰으로 QR 코드를 스캔해 주세요", color = c.text, fontSize = us(22), fontWeight = FontWeight.SemiBold)
-                            Spacer(Modifier.height(u(14)))
-                            Countdown(s.link.code.expiresAt)
-                        }
-                        s.link is LinkState.Expired -> {
-                            PanelMessage("QR 코드 시간이 지났어요", "새 QR 코드를 받아 주세요")
-                            Spacer(Modifier.height(u(14)))
-                            Pill("남은 시간 00:00")
-                        }
-                        else -> {
-                            CircularProgressIndicator(color = c.accent, modifier = Modifier.size(u(48)))
-                            Spacer(Modifier.height(u(24)))
-                            Text("연결 코드를 준비하고 있어요", color = c.subText, fontSize = us(22))
-                        }
-                    }
-                }
-            }
-            Spacer(Modifier.height(u(18)))
-            PleosButton("새 QR 코드 받기", enabled = !s.busy, onClick = onReissue)
-            Spacer(Modifier.height(u(20)))
-            PleosButton("나중에 하기", ButtonTone.Secondary, onClick = onLater)
-            Spacer(Modifier.height(u(24)))
-        }
-    }
+    // 정차 중: 2차 시안 (QR 카드 + 노란 카드, ConnectScreen.kt)
+    V00Parking(s, onReissue, onLater)
 }
 
 /** V00 주행 중 (assets/V00 Driving): QR과 버튼을 모두 숨기고, 정차하면 저절로 QR 화면으로 돌아간다 */

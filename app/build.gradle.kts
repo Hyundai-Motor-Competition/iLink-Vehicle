@@ -93,6 +93,8 @@ dependencies {
     implementation(libs.okhttp)
     // V02 오른쪽 작은 지도 (OpenStreetMap, 키 없이 사용)
     implementation(libs.osmdroid)
+    // V00 노란 카드의 차 · 깃발 애니메이션 (모바일 스플래시와 같은 Lottie)
+    implementation(libs.lottie.compose)
     implementation(libs.okhttp.sse)
     implementation(libs.zxing.core)
 
