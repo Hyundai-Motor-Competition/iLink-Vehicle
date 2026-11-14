@@ -223,7 +223,8 @@ internal fun timeOf(spot: PickupSpots.Spot, rec: SpotRecommendations?): SpotTime
     val match = if (p == null) null else rec?.items?.filter { it.location != null }?.minByOrNull { meters(p.lat, p.lng, it.location!!.lat, it.location.lng) }
         ?.takeIf { meters(p.lat, p.lng, it.location!!.lat, it.location.lng) <= 50 }
     return SpotTime(
-        driveSeconds = match?.driveSeconds ?: spot.etaSeconds,
+        // 서버 · 추천 값이 없으면 임시 값 (화면에 '--분'이 남지 않게)
+        driveSeconds = match?.driveSeconds ?: spot.etaSeconds ?: TEMP_ETA_SECONDS,
         walkMinutes = match?.walkSeconds?.let { (it + 59) / 60 } ?: spot.walkMinutes,
     )
 }

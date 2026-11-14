@@ -462,7 +462,7 @@ fun V03Progress(s: UiState, onHold: () -> Unit, onRelease: () -> Unit) {
                         Column(Modifier.weight(1f)) {
                             Label("정차 예상")
                             Text(
-                                if (v.eta?.stale == true) "--:--" else clock(v.eta?.stopEtaAt),
+                                etaClock(v),
                                 color = c.text, fontSize = us(76), fontWeight = FontWeight.Bold,
                                 // 큰 숫자는 줄 높이를 글자 크기에 맞춰 카드가 디자인보다 커지지 않게
                                 style = TextStyle(lineHeight = us(80), platformStyle = PlatformTextStyle(includeFontPadding = false)),
@@ -532,7 +532,7 @@ private fun V03Driving(v: SessionView, onHold: () -> Unit, onRelease: () -> Unit
         PleosCard(Modifier.fillMaxWidth(), padding = 24) {
             Label("정차 예상")
             Text(
-                if (v.eta?.stale == true) "--:--" else clock(v.eta?.stopEtaAt),
+                etaClock(v),
                 color = c.text, fontSize = us(96), fontWeight = FontWeight.Bold,
                 style = TextStyle(lineHeight = us(100), platformStyle = PlatformTextStyle(includeFontPadding = false)),
             )
@@ -585,4 +585,15 @@ internal fun distance(m: Int) = if (m >= 1000) "%.1fkm".format(m / 1000.0) else 
 internal val SEOUL = ZoneId.of("Asia/Seoul")
 private val WEEK_KO = listOf("월", "화", "수", "목", "금", "토", "일")
 internal fun clockIn(seconds: Int): String = LocalTime.now(SEOUL).plusSeconds(seconds.toLong()).format(CLOCK)
+
+/** 서버 ETA가 아직 없거나 오래됐을 때 화면에 쓰는 임시 남은 시간(초). 실제 값이 오면 바로 그 값으로 바뀐다 */
+internal const val TEMP_ETA_SECONDS = 10 * 60
+
+/** 남은 시간(초): 서버 값, 없으면 임시 값 */
+internal fun etaSeconds(v: SessionView): Int =
+    v.eta?.takeIf { !it.stale }?.remainingSeconds ?: TEMP_ETA_SECONDS
+
+/** 정차 예상 시각: 서버 값, 없으면 지금 + 남은 시간 */
+internal fun etaClock(v: SessionView): String =
+    v.eta?.takeIf { !it.stale }?.stopEtaAt?.let { clock(it) }?.takeIf { it != "--:--" } ?: clockIn(etaSeconds(v))
 

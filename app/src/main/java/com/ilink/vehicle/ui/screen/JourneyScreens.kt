@@ -447,10 +447,10 @@ private fun tight() = TextStyle(
 /** '12분 후 도착' */
 @Composable
 private fun EtaHeadline(v: SessionView, modifier: Modifier) {
-    val min = v.eta?.remainingSeconds?.let { (it + 59) / 60 }
+    val min = (etaSeconds(v) + 59) / 60
     Row(modifier) {
         Text(
-            if (v.eta?.stale == true || min == null) "--분" else "${min}분",
+            "${min}분",
             color = Color.White, fontSize = us(56), fontWeight = FontWeight.ExtraBold, style = tight(), modifier = Modifier.alignByBaseline(),
         )
         Spacer(Modifier.width(u(12)))
@@ -461,7 +461,7 @@ private fun EtaHeadline(v: SessionView, modifier: Modifier) {
 /** 핀 + '수학 임팩트 학원 · 20:10 도착 예정' */
 @Composable
 private fun LocationLine(v: SessionView, arrived: Boolean, modifier: Modifier) {
-    val time = clock(v.eta?.stopEtaAt).takeIf { it != "--:--" }
+    val time = if (arrived) clock(v.eta?.stopEtaAt).takeIf { it != "--:--" } else etaClock(v)
     Row(modifier.height(u(25)), verticalAlignment = Alignment.CenterVertically) {
         OutlinePin(u(19), J.loc)
         Spacer(Modifier.width(u(8)))

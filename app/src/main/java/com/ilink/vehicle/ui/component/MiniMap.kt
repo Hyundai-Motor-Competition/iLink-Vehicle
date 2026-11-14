@@ -2,6 +2,8 @@ package com.ilink.vehicle.ui.component
 
 import android.graphics.Bitmap
 import android.graphics.Canvas
+import android.graphics.ColorMatrix
+import android.graphics.ColorMatrixColorFilter
 import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.Typeface
@@ -61,6 +63,10 @@ fun MiniMap(center: LatLng, marks: List<MapMark>, modifier: Modifier = Modifier,
             setMultiTouchControls(true)
             zoomController.setVisibility(CustomZoomButtonsController.Visibility.NEVER)
             isTilesScaledToDpi = true
+            // 휴대전화 앱(TileMap)과 같은 지도: 같은 OSM 타일을 밝은 회색 바탕(#F4F4F2) 위에 36%로 옅게
+            overlayManager.tilesOverlay.setColorFilter(PALE_TILES)
+            overlayManager.tilesOverlay.setLoadingBackgroundColor(MAP_BG)
+            setBackgroundColor(MAP_BG)
             controller.setZoom(zoom)
         }
     }
@@ -90,6 +96,19 @@ fun MiniMap(center: LatLng, marks: List<MapMark>, modifier: Modifier = Modifier,
 }
 
 private const val BLUE = 0xFF1F6BFF.toInt()
+private const val MAP_BG = 0xFFF4F4F2.toInt()
+
+/** 타일 색 = 원래 색 × 0.36 + 바탕색 × 0.64 (휴대전화 앱의 opacity 0.36과 같은 결과) */
+private val PALE_TILES = ColorMatrixColorFilter(
+    ColorMatrix(
+        floatArrayOf(
+            0.36f, 0f, 0f, 0f, 0.64f * 0xF4,
+            0f, 0.36f, 0f, 0f, 0.64f * 0xF4,
+            0f, 0f, 0.36f, 0f, 0.64f * 0xF2,
+            0f, 0f, 0f, 1f, 0f,
+        ),
+    ),
+)
 
 /** 디자인의 파란 물방울 핀 (가운데 흰 점) */
 private fun pinBitmap(d: Float): Bitmap {
