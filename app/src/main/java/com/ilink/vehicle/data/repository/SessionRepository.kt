@@ -52,8 +52,26 @@ class SessionRepository(
     suspend fun confirmRoute(spotId: Long, navRouteId: String?) =
         apply(api.confirmRoute(requireId(), ConfirmRouteRequest(spotId, navRouteId, version()), newIdempotencyKey()))
 
-    suspend fun changeSpot(spotId: Long) = cur().let {
-        apply(api.changeSpot(it.sessionId, ChangeSpotRequest(spotId, it.stateVersion, it.spot?.spotVersion ?: 0), newIdempotencyKey()))
+    /** V06 대안 장소로 바꾼다 (SES-05 spotId). 합류 안내가 이미 나갔으면 먼저 철회해야 서버가 받는다 */
+    suspend fun changeSpot(spotId: Long) = revokeActiveCall().let {
+        apply(api.changeSpot(it.sessionId, ChangeSpotRequest(spotId = spotId, stateVersion = it.stateVersion, spotVersion = it.spot?.spotVersion ?: 0), newIdempotencyKey()))
+    }
+
+    /**
+     * V05 여기로 부르기 (SES-05 here): 마지막으로 보낸 차 위치를 임시 장소로 확정하고 바로 합류 안내를 보낸다.
+     * AUTO · 보호자 확인형 가족 모두 쓸 수 있다 (CALL-02는 보호자 확인형만). 보낸 안내가 있으면 먼저 철회한다
+     */
+    suspend fun callHere() = revokeActiveCall().let {
+        apply(api.changeSpot(it.sessionId, ChangeSpotRequest(here = true, stateVersion = it.stateVersion, spotVersion = it.spot?.spotVersion ?: 0), newIdempotencyKey()))
+    }
+
+    /** 살아 있는 합류 안내(철회 · 완료 전)가 있으면 철회하고 최신 세션을 돌려준다 */
+    private suspend fun revokeActiveCall(): SessionView {
+        val now = refresh()
+        val callId = now.call?.callId
+        val st = now.status?.call
+        if (callId == null || st == null || st == "NONE" || st == "REVOKED") return now
+        return apply(api.revokeCall(callId, now.stateVersion, "CHANGE_SPOT", newIdempotencyKey()))
     }
 
     suspend fun holdCall() = apply(api.holdCall(requireId(), version(), newIdempotencyKey()))

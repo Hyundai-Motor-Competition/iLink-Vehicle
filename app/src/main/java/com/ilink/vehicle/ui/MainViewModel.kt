@@ -216,9 +216,9 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     /** V06 다시 진행 (아이가 안 탔을 때 다시 기다리기) */
     fun resume() = launchCatching { c.sessions.resume() }
 
-    /** V05 여기로 부르기: 정한 장소가 아닌 근처에 섰을 때 지금 차 위치로 아이에게 합류 안내를 바로 보낸다 (CALL-02) */
+    /** V05 여기로 부르기: 정한 장소가 아닌 근처에 섰을 때 지금 차 위치로 아이에게 합류 안내를 바로 보낸다 (SES-05 here) */
     fun callHere() = launchCatching {
-        c.sessions.sendCallManually()
+        c.sessions.callHere()
         local.value = local.value.copy(calledHereAt = System.currentTimeMillis())
     }
 

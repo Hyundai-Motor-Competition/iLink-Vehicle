@@ -50,7 +50,8 @@ data class LinkStatusResponse(
 
 @Serializable data class StartPickupRequest(val scheduleIds: List<Long>, val date: String)
 @Serializable data class ConfirmRouteRequest(val spotId: Long, val navRouteId: String? = null, val stateVersion: Int)
-@Serializable data class ChangeSpotRequest(val spotId: Long, val stateVersion: Int, val spotVersion: Int)
+/** SES-05: spotId(저장된 다른 장소) · here(true, 마지막 차 위치로 임시 장소 + 바로 합류 안내) 중 하나 */
+@Serializable data class ChangeSpotRequest(val spotId: Long? = null, val stateVersion: Int, val spotVersion: Int, val here: Boolean? = null)
 @Serializable data class StateVersionRequest(val stateVersion: Int, val reason: String? = null)
 @Serializable data class CompletePickupRequest(val mode: String, val stateVersion: Int, val notBoardedChildUserIds: List<Long>? = null)
 @Serializable data class RejectBoardingRequest(val stateVersion: Int, val childUserId: Long? = null)

@@ -162,6 +162,21 @@ class DemoServer(private val scope: CoroutineScope, private val approveAfterPoll
             }
             "POST" to "spot-changes" -> {
                 val r = decode<ChangeSpotRequest>(body)
+                // here(true): 지금 차 위치를 임시 장소로 확정하고 바로 합류 안내 (실제 서버와 같게)
+                if (r.here == true) {
+                    val now = Instant.now()
+                    return update {
+                        it.copy(
+                            spot = SessionSpot(null, "차량 정차 위치", spotVersion = r.spotVersion + 1, locked = true),
+                            status = it.status?.copy(spot = "CONFIRMED", call = "DELIVERED"),
+                            call = (it.call ?: SessionCall(mode = "AUTO")).copy(
+                                callId = (it.call?.callId ?: 9000) + 1, held = false, scheduledAt = null,
+                                progress = CallProgress(now.toString(), now.toString(), now.plusSeconds(1).toString()),
+                            ),
+                            children = it.children.map { c -> c.copy(phase = "CALLED", callNotBefore = now.toString()) },
+                        )
+                    }
+                }
                 val spot = DemoData.spots.academies.flatMap { it.spots }.firstOrNull { it.spotId == r.spotId }
                 update {
                     it.copy(
