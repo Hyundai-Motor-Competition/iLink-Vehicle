@@ -1,5 +1,6 @@
 package com.ilink.vehicle.ui.screen
 
+import com.ilink.vehicle.domain.shortName
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
@@ -304,7 +305,7 @@ private fun V01Card(p: WeeklyPickups.Pickup, eta: Int?, startable: Boolean, show
             Spacer(Modifier.width(u(16)))
             // 아이 사진 자리 (74): 사진이 없어 이름
             Box(Modifier.size(u(74)).clip(CircleShape).background(V01.avatar), contentAlignment = Alignment.Center) {
-                Text(p.childName?.takeLast(2) ?: "아이", color = Color(0xFF2E2E2C), fontSize = us(22), fontWeight = FontWeight.ExtraBold)
+                Text(p.childName?.let(::shortName) ?: "아이", color = Color(0xFF2E2E2C), fontSize = us(22), fontWeight = FontWeight.ExtraBold)
             }
         }
         // 버튼 463 x 72 (y 191), 모서리 18
