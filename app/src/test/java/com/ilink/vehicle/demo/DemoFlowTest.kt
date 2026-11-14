@@ -95,7 +95,7 @@ class DemoFlowTest {
         }
     }
 
-    @Test fun `합류 안내 보류 중에는 안내를 만들지 않고, 탑승 거절이면 V06`() = runBlocking {
+    @Test fun `합류 안내 보류 중에는 안내를 만들지 않고, 탑승 거절이면 V04로 복귀`() = runBlocking {
         withTimeout(30_000) {
             links.startLink().filterIsInstance<LinkState.Linked>().first()
             sessions.start(listOf(101))
@@ -110,8 +110,11 @@ class DemoFlowTest {
             assertNotNull(sessions.session.value!!.call?.callId)
             sessions.sendVehicleEvent(event("DOOR_CYCLE"))
             sessions.refresh()
+            // 기획 QA-37: 취소 창 안에서 취소하면 완료만 취소되고 합류 진행(V04)으로 돌아간다
             sessions.rejectBoarding(null)
-            assertEquals(VehicleScreen.V06, screen())
+            assertEquals(VehicleScreen.V04, screen())
+            assertEquals("ACTIVE", sessions.session.value!!.status?.session)
+            assertEquals("MEETING", sessions.session.value!!.children.first().phase)
         }
     }
 }

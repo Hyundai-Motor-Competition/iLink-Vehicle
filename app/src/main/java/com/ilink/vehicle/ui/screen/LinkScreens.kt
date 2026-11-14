@@ -141,6 +141,15 @@ private fun Countdown(expiresAt: String) {
 /** V07 설정 요약. 수정은 휴대전화에서 */
 @Composable
 fun V07Settings(s: UiState, onBack: () -> Unit, onLogout: () -> Unit) {
+    // 기획 QA-27: 주행 중 V07은 '정차 후 이용' 안내만
+    if (s.driving) {
+        AdaptiveScreen("V07", "설정 요약") {
+            Text("정차 후 이용할 수 있어요", style = MaterialTheme.typography.titleMedium)
+            Text("안전을 위해 주행 중에는 설정을 볼 수 없어요", style = MaterialTheme.typography.bodyLarge)
+            PrimaryAction("돌아가기", onClick = onBack)
+        }
+        return
+    }
     AdaptiveScreen("V07", "설정 요약") {
         val st = s.settings
         Text("보호자 ${st?.guardianNameMasked ?: "-"}", style = MaterialTheme.typography.bodyLarge)

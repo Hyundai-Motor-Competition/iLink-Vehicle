@@ -211,6 +211,7 @@ fun JourneyArrived(
     onOtherPlace: () -> Unit,
     onContact: () -> Unit,
     onMenu: () -> Unit,
+    onManual: () -> Unit = {},
 ) {
     val v = s.session ?: return
     val rows = timelineRows(v, 2, s.departedAt, s.calledHereAt)
@@ -225,11 +226,20 @@ fun JourneyArrived(
             LocationLine(v, arrived = true, Modifier.offset(u(38), u(276)).width(u(698)))
             TimelineCard(rows, Modifier.offset(u(38), u(339)).size(u(698), u(252)), avatarsInCard = true)
             s.error?.let { ErrorAt(it, 630) }
-            Text(
-                "차량이 다른 곳에 정차했나요?", color = J.caption, fontSize = us(17), textAlign = TextAlign.Center,
-                modifier = Modifier.offset(u(38), u(668)).width(u(698)),
-            )
-            DarkButton(if (s.calledHereAt != null) "여기로 다시 부르기" else "여기로 부르기", !s.busy, Modifier.offset(u(38), u(704))) { onCallHere() }
+            if (!s.doorSignalAvailable && v.call?.callId != null) {
+                // 기획 QA-38: 도어 신호를 못 받는 차량은 아이가 타면 직접 완료한다 (ERR-14)
+                Text(
+                    "문 열림 신호를 받을 수 없어요. 아이가 타면 눌러 주세요", color = J.caption, fontSize = us(17), textAlign = TextAlign.Center,
+                    modifier = Modifier.offset(u(38), u(668)).width(u(698)),
+                )
+                StartButton(0, enabled = !s.busy, Modifier.offset(u(38), u(704)), label = "탑승 확인 및 완료", width = 698, ring = false, onClick = onManual)
+            } else {
+                Text(
+                    "차량이 다른 곳에 정차했나요?", color = J.caption, fontSize = us(17), textAlign = TextAlign.Center,
+                    modifier = Modifier.offset(u(38), u(668)).width(u(698)),
+                )
+                DarkButton(if (s.calledHereAt != null) "여기로 다시 부르기" else "여기로 부르기", !s.busy, Modifier.offset(u(38), u(704))) { onCallHere() }
+            }
             DarkButton("다른장소로 가기", !s.busy, Modifier.offset(u(38), u(789))) { onOtherPlace() }
             SpotMiniMap(s, v)
         }
@@ -322,14 +332,16 @@ fun JourneyBoarded(
     val cancelLeft = secondsUntil(v.boarding?.cancelableUntil)
     val canReject = !completed && cancelLeft > 0
 
+    // 기획 QA-28: 주행 중에는 완료 전 탑승 확인 조작을 막는다 (완료된 뒤의 '집으로 가기' · '픽업 끝내기'만 허용)
+    val locked = s.driving && !completed
     var left by remember { mutableIntStateOf(AUTO_START_S) }
     var fired by remember { mutableStateOf(false) }
-    LaunchedEffect(s.busy) {
-        while (!fired && left > 0 && !s.busy) {
+    LaunchedEffect(s.busy, locked) {
+        while (!fired && left > 0 && !s.busy && !locked) {
             delay(1_000)
             left -= 1
         }
-        if (!fired && left == 0 && !s.busy) {
+        if (!fired && left == 0 && !s.busy && !locked) {
             fired = true
             onGoHome()
         }
@@ -349,7 +361,7 @@ fun JourneyBoarded(
                 Row(Modifier.offset(y = u(276)).fillMaxWidth().height(u(25)), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
                     PlaceAndTime(v, "$boardedAt 탑승")
                 }
-                BoardedButtons(s, left, fired, canReject, x = 37, width = 1231, onGoHome = { fired = true; onGoHome() }, onEnd = onEnd, onReject = { onReject(v.children.singleOrNull()?.childUserId) })
+                BoardedButtons(s, left, fired || locked, canReject = false, x = 37, width = 1231, onGoHome = { fired = true; onGoHome() }, onEnd = onEnd, onReject = { onReject(v.children.singleOrNull()?.childUserId) })
             } else {
                 Text("탑승 완료", color = Color.White, fontSize = us(56), fontWeight = FontWeight.ExtraBold, style = tight(), modifier = Modifier.offset(u(38), u(187)))
                 Row(Modifier.offset(u(38), u(276)).width(u(560)).height(u(25)), verticalAlignment = Alignment.CenterVertically) {
@@ -405,7 +417,7 @@ private fun BoardedButtons(
         )
     }
     StartButton(left, enabled = !s.busy && !fired, Modifier.offset(u(x), u(703)), label = "집으로 가기", width = width, onClick = onGoHome)
-    DarkButton("픽업 끝내기", !s.busy, Modifier.offset(u(x), u(788)), width = width, onClick = onEnd)
+    DarkButton("픽업 끝내기", !s.busy && !(fired && s.driving), Modifier.offset(u(x), u(788)), width = width, onClick = onEnd)
 }
 
 /** 오른쪽 위 메뉴 하나 (탑승 완료 화면) */

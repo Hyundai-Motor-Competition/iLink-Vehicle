@@ -1,15 +1,23 @@
 # iLink - 차량 앱
 
 학원 하원 픽업을 도와주는 Pleos Connect 차량용 앱입니다.
-보호자 휴대전화 앱(ilink-mobile)과 같은 서버를 쓰고, 차에서는 연결 → 오늘의 픽업 → 픽업 장소 추천 → 픽업 진행 순서로 흘러갑니다.
+보호자 휴대전화 앱([iLink-Client](https://github.com/Hyundai-Motor-Competition/iLink-Client))과 같은 서버를 쓰고, 차에서는 연결 → 오늘의 픽업 → 픽업 장소 선택 → 목적지로 가는 길 → 도착 · 정차 → 탑승 완료 순서로 흘러갑니다.
+
+- 기획안: [iLink 기획안 (구글 시트)](https://docs.google.com/spreadsheets/d/100loJGe8NF_Yxbjat_zQi9Y1dwDjXLRuzn82QDN2BA0/edit) · 0. 기본 플로우 · 2. API 명세서 · 3. 화면 명세서 · 5. QA·MVP 범위
+
+## 화면 예시
+
+![픽업 흐름: 연결 → 오늘의 픽업 → 장소 선택 → 가는 길 → 도착 → 탑승 완료(정차 · 주행)](docs/images/flow.gif)
 
 | 오늘의 픽업 (V01) | 픽업 장소 선택 (V02) |
 |---|---|
 | ![V01](docs/images/v01_today.png) | ![V02](docs/images/v02_spot.png) |
+| **목적지로 가는 길 (V03)** | **도착 · 정차 중 (V05)** |
+| ![V03](docs/images/v03_enroute.png) | ![V05 도착](docs/images/v05_arrived.png) |
 | **탑승 완료 · 정차 중** | **탑승 완료 · 주행 중** |
 | ![탑승 완료 정차 중](docs/images/v05_boarded.png) | ![탑승 완료 주행 중](docs/images/v05_boarded_driving.png) |
 
-> 앱 창(1305 x 908) 크기 캡처입니다. V02는 Pleos Connect 에뮬레이터에서 실제 지도(OpenStreetMap)와 함께 찍었고, 나머지는 `scripts/capture-screens.sh`(에뮬레이터 없이 Robolectric)로 찍었습니다.
+> 앱 창(1305 x 908) 크기 화면입니다. V02는 Pleos Connect 에뮬레이터에서 실제 지도(OpenStreetMap)와 함께 찍었고, 나머지는 `scripts/capture-screens.sh`(에뮬레이터 없이 Robolectric)로 찍었습니다. 캡처에서는 같은 지도 그림을 미리보기로 깔았습니다.
 
 ## 화면 흐름
 
@@ -38,7 +46,49 @@
 - 장소: 저장된 장소(SPOT-01)로 길안내를 확정(SES-04)하고, 추천(SPOT-04 운전 시간 · SPOT-05 학원 근처)은 같은 자리 장소의 시간 표시에 씁니다. SPOT-05 응답은 `{ supported, items }` 객체입니다.
 - 서버와 기획서의 차이, 바뀐 규칙은 [docs/api-gap.md](docs/api-gap.md)에 정리했습니다. 전체 API 점검은 모바일 저장소의 `scripts/swagger-smoke.py`로 합니다.
 
-## 가벼운 Pleos Connect 에뮬레이터 실행
+## 개발 환경
+
+- Kotlin, Jetpack Compose, osmdroid(지도)
+- Pleos Connect 에뮬레이터 v2.1.0 (Android 14, API 34)
+- JDK 17 이상, Android SDK 35
+
+## 문서
+
+- [docs/design.md](docs/design.md) 구조와 흐름
+- [docs/api-gap.md](docs/api-gap.md) 기획서와 서버 API 차이
+
+## 앱 실행 방법
+
+### 준비
+
+- JDK 17 이상, Android SDK 35 (Android Studio)
+- Pleos Connect 에뮬레이터 이미지 v2.1.0 (아래 「Pleos 이미지 준비」)
+
+```bash
+git clone https://github.com/Hyundai-Motor-Competition/iLink-Vehicle.git
+```
+
+```bash
+cd iLink-Vehicle
+```
+
+### 가장 빠른 실행 (데모 빌드)
+
+서버 · 차량 신호 없이 데모 서버와 가짜 차량으로 전체 흐름을 봅니다.
+
+```bash
+scripts/run-pleos.sh
+```
+
+에뮬레이터를 띄우고 데모 앱(`com.ilink.vehicle.demo`)을 설치해 실행합니다. 약 12초 뒤 연결이 자동 승인되고 오늘의 픽업(V01)으로 넘어갑니다.
+
+### 실제 서버로 실행
+
+```bash
+scripts/run-pleos.sh --real
+```
+
+### 가벼운 Pleos Connect 에뮬레이터로 실행
 
 Pleos Connect 에뮬레이터는 기본 설정(RAM 8GB)으로 띄우면 너무 무거워서, 노트북에서도 돌릴 수 있게 가볍게 띄우는 스크립트를 만들었습니다.
 
@@ -55,14 +105,14 @@ scripts/run-pleos.sh --headless
 scripts/pleos-flow-capture.sh
 ```
 
-### Pleos 이미지 준비
+#### Pleos 이미지 준비
 
 1. Android Studio > SDK Manager > SDK Update Sites에 Pleos 이미지 주소를 추가합니다.
    - Windows/Linux: `https://nexus-playground.pleos.ai/repository/raw-releases/connect-avd/2.x/crp-sys-img.xml`
    - macOS(Apple Silicon): `https://nexus-playground.pleos.ai/repository/raw-releases/connect-avd/2.x/crp-arm64-sys-img.xml`
 2. "Pleos Connect System Image"(API 34)를 설치합니다. AVD는 `run-pleos.sh`가 알아서 만듭니다.
 
-### 데모 모드
+#### 데모 모드
 
 에뮬레이터에는 실제 서버와 차량 신호가 없어서 `demo` 빌드를 따로 두었습니다. (패키지 `com.ilink.vehicle.demo`)
 
@@ -71,7 +121,7 @@ scripts/pleos-flow-capture.sh
 - 합류 안내는 서버 규칙(가드 G6, 2026.11.13~)대로 정차를 확인한 뒤에만 나갑니다.
 - 오른쪽 위 DEMO 버튼으로 주행 규제, 도어 신호 끊김, 바로 도착, 처음부터를 조작할 수 있습니다.
 
-## 빌드
+### 빌드 · 테스트
 
 ```bash
 ./gradlew installDebug
@@ -79,14 +129,3 @@ scripts/pleos-flow-capture.sh
 
 - API 서버 주소는 `app/build.gradle.kts`의 `API_BASE_URL`에서 바꿉니다.
 - 단위 테스트: `./gradlew testDebugUnitTest` (도어 판정, 세션 병합, 음성 안내, 데모 서버 흐름)
-
-## 개발 환경
-
-- Kotlin, Jetpack Compose, osmdroid(지도)
-- Pleos Connect 에뮬레이터 v2.1.0 (Android 14, API 34)
-- JDK 17 이상, Android SDK 35
-
-## 문서
-
-- [docs/design.md](docs/design.md) 구조와 흐름
-- [docs/api-gap.md](docs/api-gap.md) 기획서와 서버 API 차이

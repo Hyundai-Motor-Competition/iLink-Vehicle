@@ -46,7 +46,7 @@ fun AppRoot(vm: MainViewModel) {
                     )
                     else -> JourneyArrived(
                         s, onCallHere = { vm.callHere() }, onOtherPlace = { vm.chooseOtherPlace(true) },
-                        onContact = { vm.openContacts() }, onMenu = { vm.openSettings() },
+                        onContact = { vm.openContacts() }, onMenu = { vm.openSettings() }, onManual = { vm.completeManually() },
                     )
                 }
                 // 탑승 완료 (탑승완료-정차중 · 주행중): 집으로 가기(8초 자동) · 픽업 끝내기

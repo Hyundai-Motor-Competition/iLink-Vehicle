@@ -35,11 +35,20 @@ data class MapMark(val at: LatLng, val selected: Boolean, val label: String = ""
  */
 @Composable
 fun MiniMap(center: LatLng, marks: List<MapMark>, modifier: Modifier = Modifier, zoom: Double = 17.3) {
+    val context = LocalContext.current
     if (LocalInspectionMode.current || Build.FINGERPRINT == "robolectric") {
-        Box(modifier.background(Color(0xFFEDEEF2)))
+        // 미리보기 · 화면 캡처: 디버그 빌드에만 있는 지도 그림(map_preview, 에뮬레이터에서 찍은 실제 지도)을 깐다. 없으면 빈 판
+        val preview = context.resources.getIdentifier("map_preview", "drawable", context.packageName)
+        if (preview != 0) {
+            androidx.compose.foundation.Image(
+                androidx.compose.ui.res.painterResource(preview), contentDescription = null,
+                contentScale = androidx.compose.ui.layout.ContentScale.Crop, modifier = modifier,
+            )
+        } else {
+            Box(modifier.background(Color(0xFFEDEEF2)))
+        }
         return
     }
-    val context = LocalContext.current
     val density = context.resources.displayMetrics.density
     val map = remember {
         Configuration.getInstance().apply {

@@ -182,7 +182,7 @@ internal fun SpotCard(spot: PickupSpots.Spot, t: SpotTime?, selected: Boolean, m
 
 /** 698 x 73 노란 버튼 + 자동 출발까지 남은 초를 보여 주는 고리 */
 @Composable
-internal fun StartButton(left: Int, enabled: Boolean, modifier: Modifier, label: String = "여기로 출발하기", width: Number = 698, onClick: () -> Unit) {
+internal fun StartButton(left: Int, enabled: Boolean, modifier: Modifier, label: String = "여기로 출발하기", width: Number = 698, ring: Boolean = true, onClick: () -> Unit) {
     Row(
         modifier.size(u(width), u(73)).clip(RoundedCornerShape(u(18)))
             .background(if (enabled) V01.yellow else V01.yellow.copy(alpha = 0.5f))
@@ -191,7 +191,7 @@ internal fun StartButton(left: Int, enabled: Boolean, modifier: Modifier, label:
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(label, color = V01.bg, fontSize = us(22), fontWeight = FontWeight.ExtraBold)
-        if (enabled) {
+        if (enabled && ring) {
             Spacer(Modifier.width(u(14)))
             Box(Modifier.size(u(38)), contentAlignment = Alignment.Center) {
                 val frac = left / AUTO_START_S.toFloat()

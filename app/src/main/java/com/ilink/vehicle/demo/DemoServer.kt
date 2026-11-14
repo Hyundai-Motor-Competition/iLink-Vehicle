@@ -206,12 +206,12 @@ class DemoServer(private val scope: CoroutineScope, private val approveAfterPoll
                 completeJob?.cancel()
                 val r = decode<RejectBoardingRequest>(body)
                 val childId = r.childUserId ?: s.children.firstOrNull()?.childUserId
+                // 기획 QA-37: 취소 창 안의 '아이가 타지 않았어요'는 완료만 취소하고 MEETING을 유지한다 (V04로 복귀).
+                // 실제 서버도 세션을 ACTIVE로 둔다. 미탑승 예외(SES-13)는 따로 연다
                 update {
                     it.copy(
                         boarding = null,
-                        status = it.status?.copy(session = "ON_HOLD"),
-                        incident = SessionIncident("CHILD_NOT_ON_BOARD", childId, now()),
-                        children = it.children.map { c -> if (c.childUserId == childId) c.copy(phase = "NOT_BOARDED") else c },
+                        children = it.children.map { c -> if (c.childUserId == childId) c.copy(phase = "MEETING", boardedAt = null) else c },
                     )
                 }
             }
