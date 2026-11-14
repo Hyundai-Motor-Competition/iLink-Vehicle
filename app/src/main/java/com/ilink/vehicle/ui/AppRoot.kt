@@ -49,7 +49,11 @@ fun AppRoot(vm: MainViewModel) {
                         onContact = { vm.openContacts() }, onMenu = { vm.openSettings() },
                     )
                 }
-                VehicleScreen.V05 -> V05Complete(s, onReject = { vm.rejectBoarding(it) }, onComplete = { vm.completeManually() }, onDone = vm::finish)
+                // 탑승 완료 (탑승완료-정차중 · 주행중): 집으로 가기(8초 자동) · 픽업 끝내기
+                VehicleScreen.V05 -> JourneyBoarded(
+                    s, onGoHome = vm::goHome, onEnd = vm::endPickup,
+                    onReject = { vm.rejectBoarding(it) }, onMenu = { vm.openSettings() },
+                )
                 VehicleScreen.V06 -> V06Exception(
                     s, onAlternative = { vm.useAlternative(it) }, onContact = { vm.openContacts() },
                     onCancel = { vm.cancelPickup() }, onResume = { vm.resume() },

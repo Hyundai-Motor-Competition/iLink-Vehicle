@@ -38,3 +38,9 @@
 - `GET /v1/pickup-spot-recommendations?academyId&origin=위도,경도` (차량 토큰 가능). 학원 근처 길가 정차 · 공영주차장 후보와 운전 · 걷는 시간.
 - 결과에 spotId가 없어 차량이 바로 길안내 확정(SES-04)할 수 없다. 그래서 V02는 저장된 장소(SPOT-01)를 보여 주고, 같은 자리(50m 안) 추천 후보가 있으면 그 운전 · 걷는 시간을 쓴다. 후보를 새 장소로 저장하는 건 보호자 앱(SPOT-02)에서 한다.
 - 2026.11.13부터 합류 안내는 정차(STOPPED) 뒤에만 나간다(가드 G6). 도착 3분 전에는 자녀에게 실내 준비 알림만 간다. 데모 서버 · 음성 안내(U04) · V03/V04 문구는 아직 이전 규칙(3분 전 발송) 기준이다.
+
+## 2026.11.14 서버 변경
+
+- SPOT-05 학원 근처 추천 `GET /v1/pickup-spot-recommendations/nearby?academyId` 응답은 `{ supported, items }` 객체 (`VehicleApi.nearbySpots`).
+- SES-04 경로 확정 · SES-05 장소 변경이 저장 장소(spotId) 대신 추천 후보 `candidate { name, location }`도 받는다. 차량 화면은 아직 저장 장소로만 길안내한다 (추천 후보로 바로 출발하는 건 다음 작업).
+- 탑승 완료 화면의 '집으로 가기'는 Pleos 내비 즐겨찾기의 HOME으로 길안내한다 (`NaviHelper.getBookmarkInfo`). 내비에 집이 없으면 픽업만 끝낸다.

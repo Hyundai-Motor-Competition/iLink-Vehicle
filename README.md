@@ -3,31 +3,40 @@
 학원 하원 픽업을 도와주는 Pleos Connect 차량용 앱입니다.
 보호자 휴대전화 앱(ilink-mobile)과 같은 서버를 쓰고, 차에서는 연결 → 오늘의 픽업 → 픽업 장소 추천 → 픽업 진행 순서로 흘러갑니다.
 
-![Pleos Connect 라이트 모드 V00~V03](docs/images/pleos_light.png)
+| 오늘의 픽업 (V01) | 픽업 장소 선택 (V02) |
+|---|---|
+| ![V01](docs/images/v01_today.png) | ![V02](docs/images/v02_spot.png) |
+| **탑승 완료 · 정차 중** | **탑승 완료 · 주행 중** |
+| ![탑승 완료 정차 중](docs/images/v05_boarded.png) | ![탑승 완료 주행 중](docs/images/v05_boarded_driving.png) |
 
-![Pleos Connect 다크 모드 V00~V03](docs/images/pleos_dark.png)
+> 앱 창(1305 x 908) 크기 캡처입니다. V02는 Pleos Connect 에뮬레이터에서 실제 지도(OpenStreetMap)와 함께 찍었고, 나머지는 `scripts/capture-screens.sh`(에뮬레이터 없이 Robolectric)로 찍었습니다.
 
-> Pleos Connect 에뮬레이터(v2.1.0)에서 V00부터 V03까지 직접 눌러 가며 캡처한 화면입니다. 위가 라이트, 아래가 다크 모드입니다.
+## 화면 흐름
 
-## 현재 구현 범위
+연결(V00) → 오늘의 픽업(V01) → 픽업 장소 선택(V02) → 목적지로 가는 길(V03·V04) → 도착 · 정차(V05 도착) → 탑승 완료(V05) → 오늘의 픽업
 
-디자인 시안이 나온 화면부터 먼저 만들었습니다.
-
-| 화면 | 주행 중 | 정차 중 |
+| 화면 | 정차 중 | 주행 중 |
 |---|---|---|
-| V00 서비스 시작·연결 | 로그인 불가 안내 | QR 연결 코드, 남은 시간, 새 QR 받기 / 나중에 하기 |
-| V01 오늘의 픽업 | 다음 픽업 1건 + 시작 | 디자인 개선안 그대로: 인사말, 좌우로 넘기는 날짜 띠(양 끝 흐림), 아이별 픽업 카드 |
-| V02 픽업 장소 | 추천 1곳 + 길안내 | 디자인 개선안: 장소 카드(운전 시간 · 도착 시각), 추천 장소, 오른쪽 작은 지도(OpenStreetMap), 8초 자동 출발 |
-| V03 픽업 진행 | 정차 예상 크게, 아이 상태, 호출 보류 | 지도와 아이 준비 단계까지 |
-| V04 합류 진행 상태 | 발송·열람·정차 단계, 호출 보류 | 직접 연락, 도어 신호가 없으면 수동 완료 |
-| V05 탑승 자동 확인 | 완료 카드 | 합류 상태, 지금 완료(10초 뒤 자동), 아이가 타지 않았어요 |
-| V06 안전 확인 필요 | 직접 연락 | 승인된 대안 → 다시 길안내, 직접 연락, 보류·취소 |
+| V00 서비스 시작·연결 | QR 연결 코드, 남은 시간, 새 QR 받기 / 나중에 하기 | 로그인 불가 안내 |
+| V01 오늘의 픽업 | 인사말, 좌우로 넘기는 날짜 띠(양 끝 흐림), 아이별 픽업 카드 | 다음 픽업 1건 + 시작 |
+| V02 픽업 장소 선택 | 장소 카드(운전 시간 · 도착 시각), 추천 장소, 오른쪽 작은 지도, 8초 뒤 자동 출발 | 추천 1곳 + 길안내 |
+| V03·V04 목적지로 가는 길 | 남은 시간, 출발 알림 → 가는 중 → 합류 안내 단계, 합류 안내 보류, 오른쪽 지도 | 가운데 좁은 틀 |
+| V05 도착 · 정차 중 | 합류 안내 진행, 여기로 부르기(지금 차 위치로 안내), 다른 장소로 가기 | 합류 진행 상태 |
+| V06 다른 장소로 가기 | 대안 장소 골라 출발(8초 자동) → 장소 변경 후 다시 길안내 | |
+| 탑승 완료 | 진행 단계, 오른쪽 그림, 집으로 가기(8초 뒤 자동, 내비 즐겨찾기 '집'으로 길안내), 픽업 끝내기, 10초 안에는 '아이가 타지 않았어요' | 가운데 제목 · 탑승 시각 + 두 버튼 |
+| 안전 확인 필요 | 정차 실패 · 미탑승: 직접 연락, 대안, 보류·취소 | 직접 연락 |
 | U01~U08 음성 안내 | 상태가 바뀌면 '발화 중'과 안내 카드를 창에 띄움 (U08은 '상태', '보류' 명령) | |
 
 - 주행/정차는 차량 주행 규제(CarUxRestrictions)로 판단합니다. 데모에서는 기어가 D면 주행 중입니다.
-- 화면은 다크 컨셉 하나만 씁니다. Pleos 디자인 가이드는 라이트/다크 둘 다를 요구하지 않고, 글자·아이콘 대비 4.5:1 이상을 요구합니다.
-- 지도는 아직 지도 SDK 없이 그림으로 그린 지도입니다. (`ui/component/SchematicMaps.kt`)
-- V02의 정차 예상 시간과 추천 이유는 서버 API가 아직 없어서 받을 자리만 만들어 두었습니다. 자세한 건 [docs/api-gap.md](docs/api-gap.md)에 정리했습니다.
+- 화면은 다크 컨셉 하나만 씁니다. Pleos 디자인 가이드는 라이트/다크 둘 다를 요구하지 않고, 글자·아이콘 대비 4.5:1 이상을 요구합니다. 글꼴은 NeoHyundai입니다.
+- 오른쪽 작은 지도는 OpenStreetMap(osmdroid, 키 없음)입니다. 길안내는 Pleos 내비가 합니다.
+- 합류 안내는 서버 규칙(가드 G6)대로 차가 정차한 뒤에만 나가고, 도착 3분 전(또는 700m)에는 자녀에게 실내 준비 알림이 갑니다.
+
+## 서버 API
+
+- 서버: `https://ilink-api-dev.chisanw.com` (`app/build.gradle.kts`의 `API_BASE_URL`)
+- 장소: 저장된 장소(SPOT-01)로 길안내를 확정(SES-04)하고, 추천(SPOT-04 운전 시간 · SPOT-05 학원 근처)은 같은 자리 장소의 시간 표시에 씁니다. SPOT-05 응답은 `{ supported, items }` 객체입니다.
+- 서버와 기획서의 차이, 바뀐 규칙은 [docs/api-gap.md](docs/api-gap.md)에 정리했습니다. 전체 API 점검은 모바일 저장소의 `scripts/swagger-smoke.py`로 합니다.
 
 ## 가벼운 Pleos Connect 에뮬레이터 실행
 
@@ -35,11 +44,11 @@ Pleos Connect 에뮬레이터는 기본 설정(RAM 8GB)으로 띄우면 너무 �
 
 | 스크립트 | 하는 일 |
 |---|---|
-| `scripts/run-pleos.sh` | Pleos Connect 이미지로 AVD를 만들고 RAM 4GB로 띄운 뒤 앱 설치·실행 |
+| `scripts/run-pleos.sh` | Pleos Connect 이미지로 AVD를 만들고 RAM 4GB로 띄운 뒤 앱 설치·실행 (Apple Silicon arm64, Windows · Intel x86_64) |
 | `scripts/run-pleos.sh --headless` | 창 없이 띄우기 (캡처만 할 때) |
-| `scripts/pleos-flow-capture.sh` | 띄워 둔 에뮬레이터에서 V00 → V03을 자동으로 눌러 가며 라이트·다크 캡처 |
+| `scripts/pleos-flow-capture.sh` | 띄워 둔 에뮬레이터에서 V00 → V03을 자동으로 눌러 가며 캡처 |
 | `scripts/run-demo.sh` | Pleos 이미지 대신 일반 Android Automotive 이미지(RAM 2GB)로 더 가볍게 데모 실행 |
-| `scripts/capture-screens.sh` | 에뮬레이터 없이 Robolectric으로 화면별 PNG 캡처 |
+| `scripts/capture-screens.sh` | 에뮬레이터 없이 Robolectric으로 화면별 PNG 캡처 (`screenshots/design-light`가 디자인 앱 창 크기) |
 
 ```bash
 scripts/run-pleos.sh --headless
@@ -69,11 +78,11 @@ scripts/pleos-flow-capture.sh
 ```
 
 - API 서버 주소는 `app/build.gradle.kts`의 `API_BASE_URL`에서 바꿉니다.
-- 단위 테스트: `./gradlew testDebugUnitTest` (도어 판정, 세션 병합, 데모 서버 흐름)
+- 단위 테스트: `./gradlew testDebugUnitTest` (도어 판정, 세션 병합, 음성 안내, 데모 서버 흐름)
 
 ## 개발 환경
 
-- Kotlin, Jetpack Compose
+- Kotlin, Jetpack Compose, osmdroid(지도)
 - Pleos Connect 에뮬레이터 v2.1.0 (Android 14, API 34)
 - JDK 17 이상, Android SDK 35
 

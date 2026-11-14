@@ -182,15 +182,15 @@ internal fun SpotCard(spot: PickupSpots.Spot, t: SpotTime?, selected: Boolean, m
 
 /** 698 x 73 노란 버튼 + 자동 출발까지 남은 초를 보여 주는 고리 */
 @Composable
-internal fun StartButton(left: Int, enabled: Boolean, modifier: Modifier, onClick: () -> Unit) {
+internal fun StartButton(left: Int, enabled: Boolean, modifier: Modifier, label: String = "여기로 출발하기", width: Number = 698, onClick: () -> Unit) {
     Row(
-        modifier.size(u(698), u(73)).clip(RoundedCornerShape(u(18)))
+        modifier.size(u(width), u(73)).clip(RoundedCornerShape(u(18)))
             .background(if (enabled) V01.yellow else V01.yellow.copy(alpha = 0.5f))
             .clickable(enabled = enabled, role = Role.Button, onClick = onClick),
         horizontalArrangement = androidx.compose.foundation.layout.Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text("여기로 출발하기", color = V01.bg, fontSize = us(22), fontWeight = FontWeight.ExtraBold)
+        Text(label, color = V01.bg, fontSize = us(22), fontWeight = FontWeight.ExtraBold)
         if (enabled) {
             Spacer(Modifier.width(u(14)))
             Box(Modifier.size(u(38)), contentAlignment = Alignment.Center) {

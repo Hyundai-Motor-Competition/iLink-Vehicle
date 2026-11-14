@@ -303,6 +303,121 @@ fun JourneyOtherPlace(
     }
 }
 
+/**
+ * 탑승 완료 (assets/탑승완료-정차중 · 탑승완료-주행중). 문 열림 · 닫힘으로 탑승을 인식했거나 완료된 뒤.
+ * 정차 중: 제목 · 장소와 도착 시각 · 진행 단계 · '집으로 가기'(8초 뒤 자동) · '픽업 끝내기', 오른쪽 그림 카드.
+ * 주행 중: 가운데 제목과 탑승 시각, 아래 두 버튼만.
+ * 탑승 인식 뒤 10초 안에는 '아이가 타지 않았어요'로 취소할 수 있다 (SES-12).
+ */
+@Composable
+fun JourneyBoarded(
+    s: UiState,
+    onGoHome: () -> Unit,
+    onEnd: () -> Unit,
+    onReject: (Long?) -> Unit,
+    onMenu: () -> Unit,
+) {
+    val v = s.session ?: return
+    val completed = v.status?.session == "COMPLETED"
+    val cancelLeft = secondsUntil(v.boarding?.cancelableUntil)
+    val canReject = !completed && cancelLeft > 0
+
+    var left by remember { mutableIntStateOf(AUTO_START_S) }
+    var fired by remember { mutableStateOf(false) }
+    LaunchedEffect(s.busy) {
+        while (!fired && left > 0 && !s.busy) {
+            delay(1_000)
+            left -= 1
+        }
+        if (!fired && left == 0 && !s.busy) {
+            fired = true
+            onGoHome()
+        }
+    }
+    val boardedAt = clock(v.boarding?.detectedAt ?: v.children.firstNotNullOfOrNull { it.boardedAt })
+    val arrivedAt = clock(v.eta?.stopEtaAt)
+    val rows = timelineRows(v, 2, s.departedAt, s.calledHereAt).mapIndexed { i, r -> if (i < 2) r.copy(step = Step.Done, sub = null) else r }
+
+    DesignCanvas(J.bg) {
+        Box(Modifier.fillMaxSize()) {
+            MenuButton(onMenu)
+            if (s.driving) {
+                Text(
+                    "탑승 완료", color = Color.White, fontSize = us(56), fontWeight = FontWeight.ExtraBold, style = tight(),
+                    textAlign = TextAlign.Center, modifier = Modifier.offset(y = u(187)).fillMaxWidth(),
+                )
+                Row(Modifier.offset(y = u(276)).fillMaxWidth().height(u(25)), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
+                    PlaceAndTime(v, "$boardedAt 탑승")
+                }
+                BoardedButtons(s, left, fired, canReject, x = 37, width = 1231, onGoHome = { fired = true; onGoHome() }, onEnd = onEnd, onReject = { onReject(v.children.singleOrNull()?.childUserId) })
+            } else {
+                Text("탑승 완료", color = Color.White, fontSize = us(56), fontWeight = FontWeight.ExtraBold, style = tight(), modifier = Modifier.offset(u(38), u(187)))
+                Row(Modifier.offset(u(38), u(276)).width(u(560)).height(u(25)), verticalAlignment = Alignment.CenterVertically) {
+                    PlaceAndTime(v, "$arrivedAt 도착")
+                }
+                Avatars(Modifier.offset(u(603), u(234)))
+                TimelineCard(rows, Modifier.offset(u(38), u(339)).size(u(698), u(252)), avatarsInCard = false)
+                BoardedButtons(s, left, fired, canReject, x = 37, width = 698, onGoHome = { fired = true; onGoHome() }, onEnd = onEnd, onReject = { onReject(v.children.singleOrNull()?.childUserId) })
+                // 오른쪽 그림 카드 498 x 678
+                Box(Modifier.offset(u(772), u(182)).size(u(498), u(678)).clip(RoundedCornerShape(u(36)))
+                    // 디자인 카드는 위에서 아래로 살짝 어두워진다. 그림 윗부분 색(#282824)과 이어지게
+                    .background(androidx.compose.ui.graphics.Brush.verticalGradient(0f to Color(0xFF2D2D29), 0.47f to Color(0xFF2A2A26)))) {
+                    Text(
+                        "아이와 함께 목적지까지\n안전한 운전 되세요", color = Color(0xFF8E8E88), fontSize = us(28), fontWeight = FontWeight.SemiBold,
+                        textAlign = TextAlign.Center, lineHeight = us(45), modifier = Modifier.offset(y = u(113)).fillMaxWidth(),
+                    )
+                    Image(
+                        painterResource(R.drawable.boarded_car), contentDescription = null, contentScale = ContentScale.FillWidth,
+                        modifier = Modifier.offset(y = u(318)).fillMaxWidth(),
+                    )
+                    // 그림 윗부분 바탕이 카드와 이어지도록 카드색 → 투명 그러데이션을 덮는다
+                    Box(
+                        Modifier.offset(y = u(318)).fillMaxWidth().height(u(110))
+                            .background(androidx.compose.ui.graphics.Brush.verticalGradient(listOf(Color(0xFF2A2A26), Color.Transparent))),
+                    )
+                }
+            }
+            s.error?.let { ErrorAt(it, 640) }
+        }
+    }
+}
+
+/** 핀 + 장소 · 노란 시각 ('20:07 도착' / '20:09 탑승') */
+@Composable
+private fun androidx.compose.foundation.layout.RowScope.PlaceAndTime(v: SessionView, yellow: String) {
+    OutlinePin(u(19), J.loc)
+    Spacer(Modifier.width(u(8)))
+    Text(v.spot?.name ?: "-", color = J.loc, fontSize = us(21), maxLines = 1, overflow = TextOverflow.Ellipsis, style = tight(), modifier = Modifier.weight(1f, fill = false))
+    Text("  ·  ", color = J.loc, fontSize = us(21), style = tight())
+    Text(yellow, color = J.yellow, fontSize = us(21), maxLines = 1, style = tight())
+}
+
+/** '아이가 타지 않았어요'(취소 가능할 때만) · '집으로 가기'(8초 자동) · '픽업 끝내기' */
+@Composable
+private fun BoardedButtons(
+    s: UiState, left: Int, fired: Boolean, canReject: Boolean, x: Int, width: Int,
+    onGoHome: () -> Unit, onEnd: () -> Unit, onReject: () -> Unit,
+) {
+    if (canReject) {
+        Text(
+            "아이가 타지 않았어요", color = J.caption, fontSize = us(18), textAlign = TextAlign.Center,
+            modifier = Modifier.offset(u(x), u(648)).width(u(width)).clickable(role = Role.Button, enabled = !s.busy, onClick = onReject),
+        )
+    }
+    StartButton(left, enabled = !s.busy && !fired, Modifier.offset(u(x), u(703)), label = "집으로 가기", width = width, onClick = onGoHome)
+    DarkButton("픽업 끝내기", !s.busy, Modifier.offset(u(x), u(788)), width = width, onClick = onEnd)
+}
+
+/** 오른쪽 위 메뉴 하나 (탑승 완료 화면) */
+@Composable
+private fun MenuButton(onMenu: () -> Unit) {
+    Box(
+        Modifier.offset(u(1196), u(49)).size(u(74)).clip(CircleShape).background(J.card)
+            .clickable(role = Role.Button, onClickLabel = "메뉴", onClick = onMenu),
+        contentAlignment = Alignment.Center,
+    ) { MenuIcon(u(26), Color(0xFFE6E6E0)) }
+}
+
 /* ---------- 조각 ---------- */
 
 private fun tight() = TextStyle(

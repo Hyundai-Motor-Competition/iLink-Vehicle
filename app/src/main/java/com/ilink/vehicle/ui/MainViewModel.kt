@@ -251,6 +251,19 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    /** 탑승 완료 → 집으로 가기: 아직 완료 전이면 완료(SES-11) 후 내비 즐겨찾기 '집'으로 길안내 */
+    fun goHome() = launchCatching {
+        if (c.sessions.session.value?.isTerminal == false) c.sessions.completeManually()
+        c.navi.routeHome()
+        finish()
+    }
+
+    /** 탑승 완료 → 픽업 끝내기: 아직 완료 전이면 완료 후 오늘의 픽업으로 */
+    fun endPickup() = launchCatching {
+        if (c.sessions.session.value?.isTerminal == false) c.sessions.completeManually()
+        finish()
+    }
+
     fun finish() {
         c.sessions.clear()
         local.value = local.value.copy(departedAt = null, calledHereAt = null, choosingPlace = false)

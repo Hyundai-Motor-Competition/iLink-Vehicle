@@ -16,7 +16,7 @@ import com.ilink.vehicle.ui.screen.JourneyArrived
 import com.ilink.vehicle.ui.screen.JourneyEnRoute
 import com.ilink.vehicle.ui.screen.JourneyOtherPlace
 import com.ilink.vehicle.ui.screen.V04Call
-import com.ilink.vehicle.ui.screen.V05Complete
+import com.ilink.vehicle.ui.screen.JourneyBoarded
 import com.ilink.vehicle.ui.screen.V06Exception
 import com.ilink.vehicle.ui.screen.V07Settings
 import com.ilink.vehicle.ui.screen.VoiceOverlay
@@ -77,9 +77,9 @@ object ScreenCatalog {
             Entry("V04_합류안내", UiState(VehicleScreen.V04, session = acked)),
             Entry("V04_합류안내_주행중", UiState(VehicleScreen.V04, session = acked, drivingRestricted = true)),
             Entry("V04_수동완료", UiState(VehicleScreen.V04, session = acked, doorSignalAvailable = false)),
-            Entry("V05_탑승감지", UiState(VehicleScreen.V05, session = DemoData.sessionBoarding(now))),
-            Entry("V05_완료", UiState(VehicleScreen.V05, session = DemoData.sessionCompleted(now))),
-            Entry("V05_완료_주행중", UiState(VehicleScreen.V05, session = DemoData.sessionCompleted(now), drivingRestricted = true)),
+            Entry("V05_탑승완료_취소가능", UiState(VehicleScreen.V05, session = DemoData.sessionBoarding(now), departedAt = wall - 600_000)),
+            Entry("V05_탑승완료", UiState(VehicleScreen.V05, session = DemoData.sessionCompleted(now), departedAt = wall - 600_000)),
+            Entry("V05_탑승완료_주행중", UiState(VehicleScreen.V05, session = DemoData.sessionCompleted(now), drivingRestricted = true)),
             Entry("V06_정차실패", UiState(VehicleScreen.V06, session = stopFailed, spots = DemoData.spots)),
             Entry("V06_정차실패_주행중", UiState(VehicleScreen.V06, session = stopFailed, spots = DemoData.spots, drivingRestricted = true)),
             Entry("V06_미탑승", UiState(VehicleScreen.V06, session = DemoData.sessionNotBoarded(now))),
@@ -105,7 +105,7 @@ object ScreenCatalog {
                         s.choosingPlace -> JourneyOtherPlace(s, onGo = {}, onBack = {}, onContact = {}, onMenu = {})
                         else -> JourneyArrived(s, onCallHere = {}, onOtherPlace = {}, onContact = {}, onMenu = {})
                     }
-                    VehicleScreen.V05 -> V05Complete(s, onReject = {}, onComplete = {}, onDone = {})
+                    VehicleScreen.V05 -> JourneyBoarded(s, onGoHome = {}, onEnd = {}, onReject = {}, onMenu = {})
                     VehicleScreen.V06 -> V06Exception(s)
                     VehicleScreen.V07 -> V07Settings(s, onBack = {}, onLogout = {})
                 }

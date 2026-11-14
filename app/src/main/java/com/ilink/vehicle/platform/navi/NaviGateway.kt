@@ -4,6 +4,8 @@ import ai.pleos.playground.navi.constants.NaviErrorCode
 import ai.pleos.playground.navi.data.DrivingInfo
 import ai.pleos.playground.navi.data.RouteInfo
 import ai.pleos.playground.navi.data.RouteStartInfo
+import ai.pleos.playground.navi.constants.BookmarkType
+import ai.pleos.playground.navi.data.BookmarkInfo
 import ai.pleos.playground.navi.helper.NaviHelper
 import ai.pleos.playground.navi.helper.listener.NaviHelperEventListener
 import android.content.Context
@@ -26,6 +28,8 @@ interface Navigation {
     val routeResults: SharedFlow<RouteResult>
     fun start()
     fun routeTo(lat: Double, lng: Double, name: String)
+    /** 내비 즐겨찾기의 '집'으로 길안내 (탑승 완료 → 집으로 가기). 집이 없으면 아무것도 하지 않는다 */
+    fun routeHome() {}
     fun stop()
 }
 
@@ -54,6 +58,28 @@ class NaviGateway(context: Context) : Navigation {
         override fun onRouteCancelled() {
             _eta.value = null
         }
+
+        // routeHome()이 즐겨찾기를 물어본 경우에만 '집'으로 길안내
+        override fun onBookmarkInfo(list: List<BookmarkInfo>) {
+            if (!homeRequested) return
+            homeRequested = false
+            val home = list.firstOrNull { it.category == BookmarkType.HOME } ?: return
+            runCatching {
+                navi.requestRoute(
+                    RouteInfo(
+                        latitude = home.latitude, longitude = home.longitude, poiName = home.name ?: "집",
+                        poiId = home.poiId ?: "", address = home.address ?: "", poiSubId = home.poiSubId ?: "",
+                    ),
+                )
+            }
+        }
+    }
+
+    @Volatile private var homeRequested = false
+
+    override fun routeHome() {
+        homeRequested = true
+        runCatching { navi.getBookmarkInfo() }.onFailure { homeRequested = false }
     }
 
     override fun start() {

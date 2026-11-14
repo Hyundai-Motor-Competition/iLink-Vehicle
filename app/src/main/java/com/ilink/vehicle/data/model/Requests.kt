@@ -96,3 +96,8 @@ data class VehicleEventRequest(
         val cautions: List<String> = emptyList(),
     )
 }
+
+/** SPOT-05 학원 기준 근처 추천 (출발 위치 없이, 걷는 거리 순 최대 8개). 배열이 아니라 객체로 온다 (2026.11.14) */
+@Serializable data class NearbySpots(val supported: Boolean = false, val items: List<Item> = emptyList()) {
+    @Serializable data class Item(val name: String? = null, val location: LatLng? = null, val walkMeters: Int? = null, val walkSeconds: Int? = null)
+}

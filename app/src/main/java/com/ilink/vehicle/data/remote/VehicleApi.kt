@@ -20,6 +20,8 @@ class VehicleApi(private val c: ApiClient) {
     /** SPOT-04. origin은 '위도,경도', arriveAt은 ISO 시각 */
     suspend fun recommendSpots(academyId: Long, origin: LatLng, arriveAt: String? = null): SpotRecommendations =
         c.get("/v1/pickup-spot-recommendations", mapOf("academyId" to academyId, "origin" to "${origin.lat},${origin.lng}", "arriveAt" to arriveAt))
+    /** SPOT-05: 응답 { supported, items } 에서 items를 꺼내 쓴다 */
+    suspend fun nearbySpots(academyId: Long): NearbySpots = c.get("/v1/pickup-spot-recommendations/nearby", mapOf("academyId" to academyId))
     suspend fun pickupSpots(academyId: Long? = null): PickupSpots = c.get("/v1/families/me/pickup-spots", mapOf("academyId" to academyId)) // SPOT-01
 
     // 세션
