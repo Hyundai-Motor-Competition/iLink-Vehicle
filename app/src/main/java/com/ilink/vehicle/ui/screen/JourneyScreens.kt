@@ -157,8 +157,14 @@ fun JourneyEnRoute(
     val phase = rememberPhase(v, s.departedAt)
     val rows = timelineRows(v, phase, s.departedAt, null)
     val held = v.call?.held == true
+    // V02 '여기로 출발하기'와 같은 자리라 두 번 누르면 보류가 걸린다. 화면이 바뀐 뒤 1.5초는 누름을 받지 않는다
+    var armed by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        kotlinx.coroutines.delay(1_500)
+        armed = true
+    }
     if (s.driving) {
-        JourneyDriving(s, v, rows, held, onHold, onRelease)
+        JourneyDriving(s, v, rows, held, armed, onHold, onRelease)
         return
     }
     DesignCanvas(J.bg) {
@@ -168,7 +174,7 @@ fun JourneyEnRoute(
             LocationLine(v, arrived = false, Modifier.offset(u(38), u(276)).width(u(698)))
             TimelineCard(rows, Modifier.offset(u(38), u(339)).size(u(698), u(252)), avatarsInCard = true)
             s.error?.let { ErrorAt(it, 760) }
-            DarkButton(if (held) "합류 안내 보류 해제" else "합류 안내 보류", !s.busy, Modifier.offset(u(38), u(789))) {
+            DarkButton(if (held) "합류 안내 보류 해제" else "합류 안내 보류", !s.busy && armed, Modifier.offset(u(38), u(789))) {
                 if (held) onRelease() else onHold()
             }
             SpotMiniMap(s, v)
@@ -183,6 +189,7 @@ private fun JourneyDriving(
     v: SessionView,
     rows: List<TimelineRow>,
     held: Boolean,
+    armed: Boolean,
     onHold: () -> Unit,
     onRelease: () -> Unit,
 ) {
@@ -192,7 +199,7 @@ private fun JourneyDriving(
             LocationLine(v, arrived = false, Modifier.offset(u(368), u(289)).width(u(430)))
             Avatars(Modifier.offset(u(809), u(247)))
             TimelineCard(rows, Modifier.offset(u(368), u(352)).size(u(571), u(252)), avatarsInCard = false)
-            DarkButton(if (held) "합류 안내 보류 해제" else "합류 안내 보류", !s.busy, Modifier.offset(u(368), u(643)), width = 571) {
+            DarkButton(if (held) "합류 안내 보류 해제" else "합류 안내 보류", !s.busy && armed, Modifier.offset(u(368), u(643)), width = 571) {
                 if (held) onRelease() else onHold()
             }
         }

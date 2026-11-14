@@ -91,6 +91,20 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 startLink()
             }
         }
+        // 대기 화면(V01)에서는 휴대폰에서 바뀐 일정이 바로 보이도록 30초마다 다시 받는다
+        viewModelScope.launch {
+            while (true) {
+                kotlinx.coroutines.delay(30_000)
+                if (local.value.screen == VehicleScreen.V01 && c.sessions.session.value == null && !local.value.busy) {
+                    runCatching {
+                        val weekly = c.api.weeklyPickups()
+                        local.value = local.value.copy(weekly = weekly, calendar = (local.value.calendar + weekly.days).associateBy { it.date }.values.sortedBy { it.date })
+                        runCatching { c.api.settingsSummary() }.onSuccess { local.value = local.value.copy(settings = it) }
+                        runCatching { c.api.pickupSpots() }.onSuccess { local.value = local.value.copy(spots = it) }
+                    }
+                }
+            }
+        }
         // 세션 변화 → 음성 안내 U02~U07
         viewModelScope.launch {
             var prev: com.ilink.vehicle.data.model.SessionView? = null

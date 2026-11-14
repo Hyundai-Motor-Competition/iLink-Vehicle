@@ -11,6 +11,10 @@ import com.ilink.vehicle.data.repository.SessionRepository
 import com.ilink.vehicle.demo.DemoWorld
 import com.ilink.vehicle.platform.location.LocationGateway
 import com.ilink.vehicle.platform.location.LocationSource
+import com.ilink.vehicle.platform.navi.EtaFallbackNavigation
+import com.ilink.vehicle.platform.sim.SimLocation
+import com.ilink.vehicle.platform.sim.SimRestriction
+import com.ilink.vehicle.platform.sim.SimVehicleSignals
 import com.ilink.vehicle.platform.navi.NaviGateway
 import com.ilink.vehicle.platform.navi.Navigation
 import com.ilink.vehicle.platform.ux.DrivingRestriction
@@ -48,11 +52,17 @@ class AppContainer(context: Context) {
     private val events: SessionEventSource = demo?.events ?: SessionStream(client, tokens)
     val sessions = SessionRepository(api, events, appScope)
 
-    val signals: VehicleSignalSource = demo?.signals ?: PleosVehicleSignals(context)
-    val navi: Navigation = demo?.navigation ?: NaviGateway(context)
-    val location: LocationSource = demo?.location ?: LocationGateway(context)
+    /** debug(실제) 빌드는 시연 스크립트 신호(SimInput)도 받는다. release는 Pleos SDK만 */
+    private val sim = demo == null && BuildConfig.DEBUG
+    val signals: VehicleSignalSource = demo?.signals
+        ?: PleosVehicleSignals(context).let { if (sim) SimVehicleSignals(it, appScope) else it }
+    val location: LocationSource = demo?.location
+        ?: LocationGateway(context).let { if (sim) SimLocation(it, appScope) else it }
+    /** 실제 빌드: 내비 ETA가 없으면 위치 · 목적지 거리로 대신 계산 (Pleos 에뮬레이터 시연 · 길안내 지연 대비) */
+    val navi: Navigation = demo?.navigation ?: EtaFallbackNavigation(NaviGateway(context), location, appScope, simulateRoute = sim)
     val voice: Announcer = demo?.announcer ?: VoiceAnnouncer(context)
-    val restriction: RestrictionSource = demo?.restriction ?: DrivingRestriction(context)
+    val restriction: RestrictionSource = demo?.restriction
+        ?: DrivingRestriction(context).let { if (sim) SimRestriction(it, appScope) else it }
 
     /** SIG-01 텔레메트리 주기. 데모는 주행을 10배 빨리 돌리므로 2초 */
     val telemetryIntervalMs: Long = if (demo != null) 2_000L else 15_000L

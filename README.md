@@ -56,6 +56,7 @@
 
 ## 문서
 
+- 시연 영상 찍는 방법(차량 · 부모 · 자녀 세 화면, 실제 서버): 모바일 저장소의 [docs/demo.md](https://github.com/Hyundai-Motor-Competition/iLink-Client/blob/main/docs/demo.md)
 - [docs/design.md](docs/design.md) 구조와 흐름
 - [docs/api-gap.md](docs/api-gap.md) 기획서와 서버 API 차이
 
@@ -88,6 +89,15 @@ scripts/run-pleos.sh
 
 ```bash
 scripts/run-pleos.sh --real
+```
+
+debug 빌드는 시연용 차량 신호 입력(`SimInput`)을 받습니다. Pleos 에뮬레이터는 차량 신호 주입을 막아 두어서, 위치 · 기어 · 주행 여부 · 문 신호를 adb broadcast로 넣습니다.
+길안내도 내비 대신 흉내 내고 도착 예정 시간은 위치 · 거리로 계산합니다. release 빌드는 Pleos SDK 값만 씁니다.
+
+```bash
+adb shell am broadcast -p com.ilink.vehicle -a com.ilink.vehicle.SIM --es gear D --ez driving true
+adb shell am broadcast -p com.ilink.vehicle -a com.ilink.vehicle.SIM --es lat 37.5258 --es lng 126.9255
+adb shell am broadcast -p com.ilink.vehicle -a com.ilink.vehicle.SIM --es door REAR_RIGHT --ez open true
 ```
 
 ### 가벼운 Pleos Connect 에뮬레이터로 실행

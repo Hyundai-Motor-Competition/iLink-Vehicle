@@ -85,7 +85,8 @@ class ApiClient(
         return try {
             http.newCall(req).execute().use { it.code to (it.body?.string() ?: "") }
         } catch (e: IOException) {
-            throw ApiException(0, "NETWORK", e.message ?: "network error")
+            // 화면에는 이 문구가 그대로 나온다 (원래 예외 메시지는 영어)
+            throw ApiException(0, "NETWORK", "인터넷 연결을 확인하고 다시 시도해 주세요")
         }
     }
 
