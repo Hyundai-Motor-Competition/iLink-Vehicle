@@ -13,7 +13,6 @@ Pleos Connect 차량용 앱 (Android Automotive)
 ![minSdk](https://img.shields.io/badge/minSdk-28-3ddc84?logo=android&logoColor=white)
 
 [모바일 앱 (iLink-Client)](https://github.com/Hyundai-Motor-Competition/iLink-Client) ·
-[기획안](https://docs.google.com/spreadsheets/d/100loJGe8NF_Yxbjat_zQi9Y1dwDjXLRuzn82QDN2BA0/edit) ·
 [시연 방법](https://github.com/Hyundai-Motor-Competition/iLink-Client/blob/main/docs/demo.md)
 
 </div>
